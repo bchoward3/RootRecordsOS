@@ -92,7 +92,6 @@ labelsLayer = L.layerGroup().addTo(map);
 // AUTH
 // ══════════════════════════════════════════
 async function checkAuth() {
-  // Listen for auth state changes first
   sb.auth.onAuthStateChange((event, session) => {
     if (session) {
       setUser(session.user);
@@ -100,16 +99,13 @@ async function checkAuth() {
       currentUser = null;
       document.getElementById('login-btn').style.display = 'block';
       document.getElementById('user-indicator').style.display = 'none';
-      showAuthModal();
     }
   });
 
-  // Then check for existing session
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     setUser(session.user);
   } else {
-    showAuthModal();
     await loadGraves();
   }
 }
