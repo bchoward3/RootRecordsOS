@@ -505,7 +505,8 @@ async function openFeaturePanel(grave) {
         const panelHeight = 300;
         const headerHeight = 48;
         const toolbarHeight = 60;
-        let left = point.x + 40;
+        let left = point.x - panelWidth - 40;
+        if (left < 10) left = point.x + 40;
         if (left + panelWidth > mapWidth - 20) left = point.x - panelWidth - 20;
         let top = point.y - panelHeight / 2 + headerHeight;
         if (top < headerHeight + 10) top = headerHeight + 10;
