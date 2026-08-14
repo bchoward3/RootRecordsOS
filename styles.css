@@ -71,11 +71,12 @@
 
     /* ── Panels (shared) ── */
     .panel {
-      position: fixed; z-index: 500;
+      position: fixed; z-index: 1001;
       background: var(--parchment); border-radius: 8px 8px 0 0;
       box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
       left: 0; right: 0; bottom: calc(80px + var(--safe-bot));
-      max-height: 70vh; overflow-y: auto;
+      max-height: calc(100vh - 48px - var(--safe-top) - 80px - var(--safe-bot));
+      overflow-y: auto;
       display: none; font-family: 'Georgia', serif;
       transform: translateY(100%);
       transition: transform 0.3s ease;
