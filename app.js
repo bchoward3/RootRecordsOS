@@ -65,7 +65,7 @@ const basemaps = {
 
 // Apply sepia CSS filter to map tiles
 const style = document.createElement('style');
-style.textContent = '.leaflet-tile-pane { filter: sepia(25%) brightness(30%) contrast(112%) saturate(70%); }';
+style.textContent = '.leaflet-tile-pane { filter: sepia(25%) brightness(60%) contrast(112%) saturate(90%); }';
 document.head.appendChild(style);
 
 basemaps.voyager.addTo(map);
