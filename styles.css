@@ -225,7 +225,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .bm-option.active { font-weight: bold; color: var(--red); }
 
 /* ── Dynamic grave icon for dark basemaps ── */
-.grave-icon-light img {
+.grave-icon-light {
   filter: invert(1) sepia(1) saturate(2) brightness(2);
 }
 
