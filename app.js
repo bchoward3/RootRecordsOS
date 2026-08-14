@@ -172,14 +172,8 @@ function renderGraves(filter) {
     if (!g.location) return;
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const isDark = currentBasemap === 'dark';
-    const icon = isDark ? L.icon({
-      iconUrl: 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28],
-      className: 'grave-icon-light'
-    }) : L.icon({
-      iconUrl: 'grave.png',
+    const icon = L.icon({
+      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
       iconSize: [20, 28],
       iconAnchor: [10, 28]
     });
@@ -912,14 +906,8 @@ function renderGravesById(names) {
   currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const isDark = currentBasemap === 'dark';
-    const icon = isDark ? L.icon({
-      iconUrl: 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28],
-      className: 'grave-icon-light'
-    }) : L.icon({
-      iconUrl: 'grave.png',
+    const icon = L.icon({
+      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
       iconSize: [20, 28],
       iconAnchor: [10, 28]
     });
