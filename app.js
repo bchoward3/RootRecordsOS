@@ -493,7 +493,7 @@ async function openFeaturePanel(grave) {
   if (coords) {
     map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
     setTimeout(() => {
-      map.panBy([-80, 0], { animate: true, duration: 0.5 });
+      map.panBy([-140, 0], { animate: true, duration: 0.5 });
       const point = map.latLngToContainerPoint([coords.lat, coords.lng]);
       const mapEl = document.getElementById('map');
       const mapWidth = mapEl.offsetWidth;
@@ -502,7 +502,7 @@ async function openFeaturePanel(grave) {
       const panelHeight = 300;
       const headerHeight = 48;
       const toolbarHeight = 60;
-      let left = point.x + 20;
+      let left = point.x + 40;
       if (left + panelWidth > mapWidth - 20) left = point.x - panelWidth - 20;
       let top = point.y - panelHeight / 2 + headerHeight;
       if (top < headerHeight + 10) top = headerHeight + 10;
@@ -515,7 +515,7 @@ async function openFeaturePanel(grave) {
       panel.style.bottom = 'auto';
       panel.style.right = 'auto';
       panel.style.display = 'block';
-    }, 1100);
+    }, 1300);
   } else {
     document.getElementById('feature-panel').style.display = 'block';
   }
