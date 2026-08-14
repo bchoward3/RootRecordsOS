@@ -911,14 +911,23 @@ function addLabel(name, latlng, color, isSelected) {
   L.marker(latlng, { icon, interactive: false, zIndexOffset: -100 }).addTo(labelsLayer);
 }
 
-// ══════════════════════════════════════════
-// SHOW ALL FAMILY WEB
-// ══════════════════════════════════════════
 async function buildFullWeb() {
+  const btn = document.getElementById('btn-web');
+
+  // If web is active, clear it
+  if (btn.classList.contains('active')) {
+    lineageLayer.clearLayers();
+    labelsLayer.clearLayers();
+    labeledNames.clear();
+    btn.textContent = '⬡ Family Web';
+    btn.classList.remove('active');
+    renderGraves();
+    return;
+  }
+
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
   labeledNames.clear();
-  const btn = document.getElementById('btn-web');
   btn.textContent = '⬡ Building...';
   btn.disabled = true;
 
@@ -936,7 +945,6 @@ async function buildFullWeb() {
     if (!childGrave) return;
     const childCoords = parseLocation(childGrave.location);
     if (!childCoords) return;
-
     [p.father, p.mother].forEach((parentName, i) => {
       const pn = (parentName || '').trim().toLowerCase();
       if (!pn || !gravesByName[pn]) return;
@@ -950,13 +958,15 @@ async function buildFullWeb() {
     });
   });
 
-  btn.textContent = count > 0 ? `⬡ Hide Web (${count})` : '⬡ Family Web';
   btn.disabled = false;
-  btn.classList.toggle('active');
 
   if (count > 0) {
+    btn.textContent = `⬡ Hide Web (${count})`;
+    btn.classList.add('active');
     const allCoords = currentGraves.map(g => parseLocation(g.location)).filter(Boolean).map(c => [c.lat, c.lng]);
     if (allCoords.length > 1) map.fitBounds(L.latLngBounds(allCoords), { padding: [40,40] });
+  } else {
+    btn.textContent = '⬡ Family Web';
   }
 }
 
