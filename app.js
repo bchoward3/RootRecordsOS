@@ -889,7 +889,7 @@ function addLabel(name, latlng, color, isSelected) {
   const bg = isSelected ? '#1a1a2e' : 'white';
   const icon = L.divIcon({
     className: '',
-    html: `<div style="background:${bg};color:${c};padding:2px 6px;border-radius:2px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid rgba(${color[0]},${color[1]},${color[2]},0.4);box-shadow:0 1px 4px rgba(0,0,0,0.2);">${display}</div>`,
+    html: `<div style="background:white;color:${c};padding:3px 8px;border-radius:3px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid ${isSelected ? '#1a1a2e' : `rgba(${color[0]},${color[1]},${color[2]},0.6)`};box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold;">${display}</div>`,
     iconAnchor: [-4, 6]
   });
   L.marker(latlng, { icon, interactive: false, zIndexOffset: -100 }).addTo(labelsLayer);
