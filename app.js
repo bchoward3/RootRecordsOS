@@ -66,7 +66,7 @@ let currentBasemap = 'voyager';
 const graveIcon = L.icon({
   // Attribution: grave icon courtsey of Abdul Matic from the Noun Project
   iconUrl: 'grave.png',
-  iconSize: [20, 28],
+  iconSize: [25, 28],
   iconAnchor: [10, 28]
 });
 
