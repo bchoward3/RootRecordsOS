@@ -1,10 +1,17 @@
+
 // ══════════════════════════════════════════
 // SUPABASE INIT
 // ══════════════════════════════════════════
+const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
+
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    storage: window.localStorage,
+    storageKey: 'rootrecords-auth',
+    detectSessionInUrl: true,
   }
 });
 
@@ -72,12 +79,24 @@ labelsLayer = L.layerGroup().addTo(map);
 // AUTH
 // ══════════════════════════════════════════
 async function checkAuth() {
+  // Listen for auth state changes first
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      setUser(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      document.getElementById('login-btn').style.display = 'block';
+      document.getElementById('user-indicator').style.display = 'none';
+      showAuthModal();
+    }
+  });
+
+  // Then check for existing session
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     setUser(session.user);
   } else {
     showAuthModal();
-    // Still load graves for public read
     await loadGraves();
   }
 }
