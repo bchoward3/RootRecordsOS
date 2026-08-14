@@ -141,14 +141,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 // ══════════════════════════════════════════
 async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
-  if (error) {
-    // Fallback to regular query
-    const { data: fallback, error: err2 } = await sb.from('graves').select('*');
-    if (err2) { console.error('Load graves failed:', err2); return; }
-    currentGraves = fallback || [];
-  } else {
-    currentGraves = data || [];
-  }
+  if (error) { console.error('Load graves failed:', error); return; }
+  currentGraves = data || [];
   renderGraves();
   populateCemeteryDropdown();
 }
