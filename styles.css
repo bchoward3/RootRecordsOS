@@ -120,14 +120,20 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .step.active { background: var(--ink); }
 
 /* ── Sepia feature panel ── */
+/* ── Sepia feature panel ── */
 #feature-panel {
-  position: fixed; bottom: calc(60px + var(--safe-bot)); left: 0; right: 0;
-  background: var(--parchment); z-index: 1002;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-  max-height: calc(100vh - 48px - var(--safe-top) - 60px - var(--safe-bot));
+  position: fixed;
+  bottom: calc(60px + var(--safe-bot));
+  left: 12px;
+  right: 12px;
+  background: var(--parchment);
+  z-index: 1002;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  max-height: 320px;
   overflow-y: auto;
   display: none;
+  border: 1px solid var(--sepia);
 }
 .fp-header {
   background: var(--dark-brown); color: var(--cream);
@@ -138,12 +144,14 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .fp-title { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
 .fp-close { background: none; border: none; color: var(--cream); font-size: 20px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .fp-photo { width: 100%; max-height: 180px; object-fit: cover; border-bottom: 1px solid var(--sepia); }
-.fp-body { padding: 12px 16px; }
-.fp-field { margin-bottom: 10px; }
-.fp-field-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--sepia); padding-bottom: 2px; margin-bottom: 3px; }
-.fp-field-value { font-size: 12px; color: var(--dark-brown); }
-.fp-actions { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; padding: 10px 16px; background: #ede3cc; border-top: 1px solid var(--sepia); }
-.fp-btn { padding: 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; min-height: 44px; }
+.fp-body { padding: 8px 12px; }
+.fp-field { margin-bottom: 6px; }
+.fp-field-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--sepia); padding-bottom: 1px; margin-bottom: 2px; }
+.fp-field-value { font-size: 11px; color: var(--dark-brown); }
+.fp-photo { width: 100%; max-height: 120px; object-fit: cover; border-bottom: 1px solid var(--sepia); }
+.fp-header { padding: 8px 12px; }
+.fp-actions { padding: 8px 12px; gap: 4px; }
+.fp-btn { padding: 6px; font-size: 10px; min-height: 36px; }
 
 /* ── Filter panel ── */
 #browse-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--sepia); border-radius: 4px; margin-top: 8px; }
