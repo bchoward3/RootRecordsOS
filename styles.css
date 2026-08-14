@@ -121,15 +121,14 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 
 /* ── Sepia feature panel ── */
 /* ── Sepia feature panel ── */
+/* ── Sepia feature panel ── */
 #feature-panel {
   position: fixed;
-  bottom: calc(60px + var(--safe-bot));
-  left: 12px;
-  right: 12px;
   background: var(--parchment);
   z-index: 1002;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  width: 260px;
   max-height: 320px;
   overflow-y: auto;
   display: none;

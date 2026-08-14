@@ -487,11 +487,45 @@ async function openFeaturePanel(grave) {
   document.getElementById('fp-move').style.display = isAuth ? 'block' : 'none';
   document.getElementById('fp-delete').style.display = isAuth ? 'block' : 'none';
 
-  document.getElementById('feature-panel').style.display = 'block';
+  // Position panel near the marker
+  if (coords) {
+    const point = map.latLngToContainerPoint([coords.lat, coords.lng]);
+    const panel = document.getElementById('feature-panel');
+    const mapEl = document.getElementById('map');
+    const mapWidth = mapEl.offsetWidth;
+    const mapHeight = mapEl.offsetHeight;
+    const panelWidth = 260;
+    const panelHeight = 300;
+    const headerHeight = 48;
+    const toolbarHeight = 60;
 
-  // Zoom to grave
+    // Position to the right of marker, flip left if near right edge
+    let left = point.x + 20;
+    if (left + panelWidth > mapWidth - 20) left = point.x - panelWidth - 20;
+
+    // Position above marker, flip down if near top
+    let top = point.y - panelHeight / 2 + headerHeight;
+    if (top < headerHeight + 10) top = headerHeight + 10;
+    if (top + panelHeight > mapHeight + headerHeight - toolbarHeight - 10) {
+      top = mapHeight + headerHeight - toolbarHeight - panelHeight - 10;
+    }
+
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.bottom = 'auto';
+    panel.style.right = 'auto';
+    panel.style.display = 'block';
+  } else {
+    document.getElementById('feature-panel').style.display = 'block';
+  }
+
+  
+  // Zoom to grave then pan so marker isn't obscured by panel
   const coords = parseLocation(grave.location);
-  if (coords) map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
+  if (coords) {
+    map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
+    setTimeout(() => map.panBy([-80, 0], { animate: true, duration: 0.5 }), 1100);
+  }
 
   // Action buttons
   document.getElementById('fp-trace').onclick = async () => {
