@@ -481,6 +481,11 @@ async function openFeaturePanel(grave) {
       photoEl.style.display = 'block';
     }
   }
+  
+  const isAuth = !!currentUser;
+  document.getElementById('fp-edit').style.display = isAuth ? 'block' : 'none';
+  document.getElementById('fp-move').style.display = isAuth ? 'block' : 'none';
+  document.getElementById('fp-delete').style.display = isAuth ? 'block' : 'none';
 
   document.getElementById('feature-panel').style.display = 'block';
 
@@ -502,6 +507,18 @@ async function openFeaturePanel(grave) {
     document.getElementById('trace-options').style.display = 'block';
     buildGenerationPills();
     openPanel('filter-panel');
+  };
+  document.getElementById('fp-edit').onclick = () => {
+    if (!currentUser) { showAuthModal(); return; }
+    openEditPanel(grave);
+  };
+  document.getElementById('fp-move').onclick = () => {
+    if (!currentUser) { showAuthModal(); return; }
+    startMoveMode(grave);
+  };
+  document.getElementById('fp-delete').onclick = () => {
+    if (!currentUser) { showAuthModal(); return; }
+    deleteGrave(grave);
   };
  
   // Action buttons
