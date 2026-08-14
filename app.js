@@ -632,6 +632,9 @@ function startMoveMode(grave) {
 async function deleteGrave(grave) {
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
   await sb.from('graves').delete().eq('id', grave.id);
+  if (grave.person_id) {
+    await sb.from('persons').delete().eq('id', grave.person_id);
+  }
   document.getElementById('feature-panel').style.display = 'none';
   await loadGraves();
 }
