@@ -43,8 +43,8 @@ const basemaps = {
   dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
   }),
-  terrain: L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg', {
-    attribution: '© Stamen © OpenStreetMap', maxZoom: 18
+  terrain: L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenTopoMap © OpenStreetMap', maxZoom: 17
   }),
   topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
     attribution: '© USGS', maxZoom: 16
@@ -65,19 +65,23 @@ const basemaps = {
 
 // Apply sepia CSS filter to map tiles
 const style = document.createElement('style');
-style.textContent = '.leaflet-tile-pane { filter: sepia(20%) brightness(88%) contrast(108%) saturate(80%); }';
+style.textContent = '.leaflet-tile-pane { filter: sepia(25%) brightness(80%) contrast(112%) saturate(75%); }';
 document.head.appendChild(style);
 
 basemaps.voyager.addTo(map);
 let currentBasemap = 'voyager';
 
 // Grave marker style
-const graveIcon = L.icon({
-  // Attribution: grave icon courtsey of Abdul Matic from the Noun Project
-  iconUrl: 'grave.png',
-  iconSize: [25, 28],
-  iconAnchor: [10, 28]
-});
+function getGraveIcon(dark = false) {
+  const fill = dark ? '#e8d5b0' : '#1a1a2e';
+  const border = dark ? '#c8b89a' : '#c8b89a';
+  return L.icon({
+    iconUrl: 'grave.png',
+    iconSize: [20, 28],
+    iconAnchor: [10, 28],
+    className: dark ? 'grave-icon-light' : 'grave-icon-dark'
+  });
+}
 
 // Graphics layers
 gravesLayer = L.layerGroup().addTo(map);
@@ -168,12 +172,22 @@ function renderGraves(filter) {
     if (!g.location) return;
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    const isDark = currentBasemap === 'dark';
+    const icon = isDark ? L.icon({
+      iconUrl: 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28],
+      className: 'grave-icon-light'
+    }) : L.icon({
+      iconUrl: 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28]
+    });
+    const marker = L.marker([coords.lat, coords.lng], { icon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
 }
-
 function parseLocation(loc) {
   if (!loc) return null;
   if (typeof loc === 'object' && loc.type === 'Point' && loc.coordinates) {
@@ -898,7 +912,18 @@ function renderGravesById(names) {
   currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    const isDark = currentBasemap === 'dark';
+    const icon = isDark ? L.icon({
+      iconUrl: 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28],
+      className: 'grave-icon-light'
+    }) : L.icon({
+      iconUrl: 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28]
+    });
+    const marker = L.marker([coords.lat, coords.lng], { icon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
