@@ -378,7 +378,9 @@ document.getElementById('save-grave').addEventListener('click', async () => {
       father: document.getElementById('g-father').value.trim() || null,
       mother: document.getElementById('g-mother').value.trim() || null,
     };
+    console.log('Saving person:', personData);
     const { data: person, error: pErr } = await sb.from('persons').insert(personData).select().single();
+    console.log('Person result:', person, pErr);
     if (pErr) throw pErr;
 
     // 2. Create grave record
@@ -395,7 +397,9 @@ document.getElementById('save-grave').addEventListener('click', async () => {
       description: document.getElementById('g-notes').value.trim() || null,
       location: `POINT(${placedPoint.lng} ${placedPoint.lat})`
     };
+    console.log('Saving grave:', graveData);
     const { data: grave, error: gErr } = await sb.from('graves').insert(graveData).select().single();
+    console.log('Grave result:', grave, gErr);
     if (gErr) throw gErr;
 
     // 3. Upload attachment if selected
@@ -419,7 +423,7 @@ document.getElementById('save-grave').addEventListener('click', async () => {
     setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
 
   } catch (err) {
-    console.error(err);
+    console.error('Save failed:', err);
     showStatus('add-status', `Save failed: ${err.message}`, 'error');
     btn.disabled = false; btn.textContent = 'Save Record';
   }
