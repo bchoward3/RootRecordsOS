@@ -143,6 +143,7 @@ async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
+  console.log('Loaded graves:', currentGraves.length);
   renderGraves();
   populateCemeteryDropdown();
 }
@@ -166,20 +167,18 @@ function renderGraves(filter) {
 
 function parseLocation(loc) {
   if (!loc) return null;
-  // GeoJSON format from Supabase: {"type":"Point","coordinates":[lng, lat]}
   if (typeof loc === 'object' && loc.type === 'Point' && loc.coordinates) {
     return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
   }
-  // String GeoJSON
   if (typeof loc === 'string' && loc.startsWith('{')) {
     try {
       const parsed = JSON.parse(loc);
       if (parsed.coordinates) return { lat: parsed.coordinates[1], lng: parsed.coordinates[0] };
     } catch(e) {}
   }
-  // WKT format: POINT(lng lat)
   const match = String(loc).match(/POINT\(([^ ]+) ([^ )]+)\)/);
   if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
+  // WKB hex — use Supabase SQL to convert instead
   return null;
 }
 
