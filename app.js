@@ -1,9 +1,12 @@
 // ══════════════════════════════════════════
 // SUPABASE INIT
 // ══════════════════════════════════════════
-const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 // State
 let map, basemaps, gravesLayer, lineageLayer, labelsLayer;
@@ -70,8 +73,13 @@ labelsLayer = L.layerGroup().addTo(map);
 // ══════════════════════════════════════════
 async function checkAuth() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) setUser(session.user);
-  else showAuthModal();
+  if (session) {
+    setUser(session.user);
+  } else {
+    showAuthModal();
+    // Still load graves for public read
+    await loadGraves();
+  }
 }
 
 function setUser(user) {
