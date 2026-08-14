@@ -476,6 +476,22 @@ async function openFeaturePanel(grave) {
   if (coords) map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
 
   // Action buttons
+  document.getElementById('fp-trace').onclick = async () => {
+    document.getElementById('feature-panel').style.display = 'none';
+    currentFilterName = grave.person_name;
+    currentFilterId = grave.person_id;
+    ancestorGens = 2;
+    descendantGens = 2;
+    await traceFromPerson(grave.person_name);
+    document.getElementById('web-legend').style.display = 'block';
+    document.getElementById('filter-name-display').textContent = grave.person_name;
+    document.getElementById('filter-active').style.display = 'block';
+    document.getElementById('trace-options').style.display = 'block';
+    buildGenerationPills();
+    openPanel('filter-panel');
+  };
+ 
+  // Action buttons
   document.getElementById('fp-edit').onclick = () => openEditPanel(grave);
   document.getElementById('fp-move').onclick = () => startMoveMode(grave);
   document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
