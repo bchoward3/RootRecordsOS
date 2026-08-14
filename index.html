@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>RootRecords</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:       #1a1a2e;
+      --parchment: #f5efe0;
+      --sepia:     #c8b89a;
+      --cream:     #e8d5b0;
+      --brown:     #6b4c2a;
+      --dark-brown:#2c1a0e;
+      --red:       #8b1a1a;
+      --mid:       #3d2a1a;
+      --safe-top:  env(safe-area-inset-top, 0px);
+      --safe-bot:  env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink); color: var(--parchment); overflow: hidden; }
+
+    /* ── Header ── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      height: calc(48px + var(--safe-top));
+      padding-top: var(--safe-top);
+      background: var(--ink);
+      display: flex; align-items: center; justify-content: space-between;
+      padding-left: 16px; padding-right: 16px;
+      border-bottom: 1px solid #2d2d4e;
+    }
+    #header h1 { font-size: 16px; letter-spacing: 3px; text-transform: uppercase; color: var(--cream); font-weight: 400; }
+    #header span { font-size: 9px; color: #9a8c72; letter-spacing: 1px; text-transform: uppercase; }
+    #login-btn {
+      background: none; border: 1px solid #3d3d5e; color: #9a8c72;
+      padding: 5px 12px; border-radius: 3px; font-size: 11px;
+      cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.5px;
+    }
+    #login-btn:hover { border-color: var(--sepia); color: var(--cream); }
+    #user-indicator { font-size: 10px; color: #9a8c72; display: flex; align-items: center; gap: 8px; }
+    #logout-btn { background: none; border: none; color: #9a8c72; font-size: 10px; cursor: pointer; text-decoration: underline; }
+
+    /* ── Map ── */
+    #map {
+      position: fixed;
+      top: calc(48px + var(--safe-top));
+      bottom: calc(80px + var(--safe-bot));
+      left: 0; right: 0;
+      z-index: 1;
+    }
+
+    /* ── Bottom toolbar ── */
+    #toolbar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+      height: calc(80px + var(--safe-bot));
+      padding-bottom: var(--safe-bot);
+      background: white; border-top: 1px solid var(--sepia);
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; padding: 10px 12px;
+      padding-bottom: calc(10px + var(--safe-bot));
+    }
+    .tool-btn {
+      background: var(--ink); color: var(--cream);
+      border: none; border-radius: 4px; padding: 10px 8px;
+      font-family: 'Georgia', serif; font-size: 11px;
+      cursor: pointer; letter-spacing: 0.5px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      min-height: 44px;
+    }
+    .tool-btn:hover { background: #2d2d4e; }
+    .tool-btn.secondary { background: white; color: var(--ink); border: 1px solid var(--sepia); }
+    .tool-btn.secondary:hover { background: var(--parchment); }
+    .tool-btn.active { background: var(--red); }
+
+    /* ── Panels (shared) ── */
+    .panel {
+      position: fixed; z-index: 500;
+      background: var(--parchment); border-radius: 8px 8px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+      left: 0; right: 0; bottom: calc(80px + var(--safe-bot));
+      max-height: 70vh; overflow-y: auto;
+      display: none; font-family: 'Georgia', serif;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    .panel.open { display: block; transform: translateY(0); }
+    .panel-header {
+      background: var(--dark-brown); color: var(--cream);
+      padding: 12px 16px; border-radius: 8px 8px 0 0;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .panel-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .panel-close { background: none; border: none; color: var(--cream); font-size: 20px; cursor: pointer; line-height: 1; padding: 0; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+    .panel-body { padding: 16px; }
+
+    /* ── Form elements ── */
+    .rr-label { font-size: 10px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; margin-top: 12px; display: block; }
+    .rr-input {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--sepia);
+      border-radius: 4px; font-size: 14px; font-family: 'Georgia', serif;
+      background: white; color: var(--dark-brown);
+      min-height: 44px;
+    }
+    .rr-input:focus { outline: none; border-color: var(--brown); }
+    textarea.rr-input { min-height: 80px; resize: vertical; }
+
+    .rr-btn {
+      width: 100%; padding: 12px; background: var(--ink); color: var(--cream);
+      border: none; border-radius: 4px; font-size: 13px; cursor: pointer;
+      font-family: 'Georgia', serif; letter-spacing: 1px; margin-top: 8px;
+      min-height: 44px;
+    }
+    .rr-btn:hover { background: #2d2d4e; }
+    .rr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .rr-btn.danger { background: var(--red); }
+    .rr-btn.secondary { background: white; color: var(--ink); border: 1px solid var(--sepia); }
+    .rr-btn.secondary:hover { background: var(--parchment); }
+
+    /* ── Step indicator ── */
+    .steps { display: flex; gap: 6px; margin-bottom: 16px; }
+    .step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
+    .step.done { background: #5a7a5a; }
+    .step.active { background: var(--ink); }
+
+    /* ── Sepia feature panel ── */
+    #feature-panel {
+      position: fixed; bottom: calc(80px + var(--safe-bot)); left: 0; right: 0;
+      background: var(--parchment); z-index: 600;
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+      max-height: 65vh; overflow-y: auto;
+      display: none;
+    }
+    .fp-header {
+      background: var(--dark-brown); color: var(--cream);
+      padding: 12px 16px; border-radius: 8px 8px 0 0;
+      display: flex; justify-content: space-between; align-items: center;
+      position: sticky; top: 0;
+    }
+    .fp-title { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
+    .fp-close { background: none; border: none; color: var(--cream); font-size: 20px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+    .fp-photo { width: 100%; max-height: 180px; object-fit: cover; border-bottom: 1px solid var(--sepia); }
+    .fp-body { padding: 12px 16px; }
+    .fp-field { margin-bottom: 10px; }
+    .fp-field-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--sepia); padding-bottom: 2px; margin-bottom: 3px; }
+    .fp-field-value { font-size: 12px; color: var(--dark-brown); }
+    .fp-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 10px 16px; background: #ede3cc; border-top: 1px solid var(--sepia); }
+    .fp-btn { padding: 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; min-height: 44px; }
+
+    /* ── Filter panel ── */
+    #browse-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--sepia); border-radius: 4px; margin-top: 8px; }
+    .browse-item { padding: 10px 12px; border-bottom: 1px solid #f0e8d8; cursor: pointer; font-size: 13px; color: var(--dark-brown); min-height: 44px; display: flex; align-items: center; justify-content: space-between; }
+    .browse-item:hover { background: #f0e8d8; }
+    .browse-item .dates { font-size: 10px; color: var(--brown); }
+
+    /* ── Generation pills ── */
+    .pill-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+    .gen-pill { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ccc; background: white; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #aaa; }
+    .gen-pill.selected { border-color: var(--red); background: #f5e8e8; color: var(--red); font-weight: bold; }
+
+    /* ── Legend ── */
+    .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--dark-brown); }
+    .legend-line { width: 28px; height: 3px; border-radius: 1px; }
+
+    /* ── Auth modal ── */
+    #auth-modal {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    #auth-modal.hidden { display: none; }
+    .auth-box {
+      background: var(--parchment); border-radius: 8px;
+      padding: 28px 24px; width: 100%; max-width: 360px;
+      border: 1px solid var(--sepia);
+    }
+    .auth-box h2 { font-size: 16px; letter-spacing: 2px; text-transform: uppercase; color: var(--dark-brown); margin-bottom: 4px; text-align: center; }
+    .auth-box p { font-size: 11px; color: var(--brown); text-align: center; margin-bottom: 20px; }
+    #auth-error { color: var(--red); font-size: 11px; margin-top: 8px; text-align: center; display: none; }
+
+    /* ── Status messages ── */
+    .status { padding: 10px 12px; border-radius: 4px; font-size: 12px; margin-top: 8px; display: none; }
+    .status.success { background: #e8f0e8; color: #2d5a2d; display: block; }
+    .status.error { background: #f0e8e8; color: var(--red); display: block; }
+    .status.info { background: #e8eaf0; color: #2d2d5a; display: block; }
+
+    /* ── Offline banner ── */
+    #offline-banner {
+      position: fixed; top: calc(48px + var(--safe-top)); left: 0; right: 0;
+      background: #5a3a1a; color: var(--cream);
+      padding: 6px 16px; font-size: 11px; text-align: center;
+      z-index: 900; display: none; letter-spacing: 0.5px;
+    }
+
+    /* ── Map controls override ── */
+    .leaflet-control-zoom { border: 1px solid var(--sepia) !important; }
+    .leaflet-control-zoom a { color: var(--dark-brown) !important; font-family: 'Georgia', serif !important; }
+
+    /* ── Locate button ── */
+    #locate-btn {
+      position: fixed; right: 12px; bottom: calc(100px + var(--safe-bot));
+      width: 44px; height: 44px; border-radius: 50%;
+      background: white; border: 1px solid var(--sepia);
+      font-size: 18px; cursor: pointer; z-index: 400;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* ── Basemap gallery ── */
+    #basemap-btn {
+      position: fixed; right: 12px; bottom: calc(154px + var(--safe-bot));
+      width: 44px; height: 44px; border-radius: 50%;
+      background: white; border: 1px solid var(--sepia);
+      font-size: 16px; cursor: pointer; z-index: 400;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #basemap-panel {
+      position: fixed; right: 12px; bottom: calc(208px + var(--safe-bot));
+      background: white; border: 1px solid var(--sepia); border-radius: 6px;
+      padding: 8px; z-index: 400; display: none;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+    .bm-option { padding: 8px 12px; cursor: pointer; font-size: 12px; color: var(--dark-brown); white-space: nowrap; min-height: 36px; display: flex; align-items: center; }
+    .bm-option:hover { background: var(--parchment); }
+    .bm-option.active { font-weight: bold; color: var(--red); }
+
+    /* ── Click banner ── */
+    #click-banner {
+      position: fixed; bottom: calc(100px + var(--safe-bot)); left: 50%;
+      transform: translateX(-50%);
+      background: var(--ink); color: var(--cream);
+      padding: 10px 20px; border-radius: 20px; font-size: 12px;
+      z-index: 800; display: none; white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3); letter-spacing: 0.5px;
+    }
+
+    /* ── Sync indicator ── */
+    #sync-badge {
+      position: fixed; left: 12px; bottom: calc(100px + var(--safe-bot));
+      background: #5a3a1a; color: var(--cream);
+      padding: 6px 12px; border-radius: 12px; font-size: 10px;
+      z-index: 400; display: none; letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth Modal -->
+<div id="auth-modal">
+  <div class="auth-box">
+    <h2>RootRecords</h2>
+    <p>Sign in to access your genealogy records</p>
+    <label class="rr-label">Email</label>
+    <input class="rr-input" type="email" id="auth-email" placeholder="your@email.com"/>
+    <label class="rr-label">Password</label>
+    <input class="rr-input" type="password" id="auth-password" placeholder="••••••••"/>
+    <div id="auth-error"></div>
+    <button class="rr-btn" id="auth-submit" style="margin-top:16px;">Sign In</button>
+  </div>
+</div>
+
+<!-- Header -->
+<div id="header">
+  <div>
+    <h1>RootRecords</h1>
+    <span>Genealogy Field Mapping</span>
+  </div>
+  <div id="user-indicator" style="display:none;">
+    <span id="user-email-display"></span>
+    <button id="logout-btn">Sign out</button>
+  </div>
+  <button id="login-btn">Sign In</button>
+</div>
+
+<!-- Offline banner -->
+<div id="offline-banner">📴 Offline — records will sync when connection is restored</div>
+
+<!-- Map -->
+<div id="map"></div>
+
+<!-- Floating controls -->
+<button id="locate-btn" title="Find my location">◎</button>
+<button id="basemap-btn" title="Change basemap">🗺</button>
+<div id="basemap-panel">
+  <div class="bm-option active" data-bm="voyager">🏺 Voyager (Antique)</div>
+  <div class="bm-option" data-bm="light">☁️ Light Gray</div>
+  <div class="bm-option" data-bm="osm">🗾 OpenStreetMap</div>
+  <div class="bm-option" data-bm="satellite">🛰 Satellite</div>
+  <div class="bm-option" data-bm="toner">🖋 Toner</div>
+</div>
+<div id="click-banner">Tap map to place grave location</div>
+<div id="sync-badge">⏳ Syncing offline records...</div>
+
+<!-- Bottom toolbar -->
+<div id="toolbar">
+  <button class="tool-btn" id="btn-add">＋ Add Grave</button>
+  <button class="tool-btn secondary" id="btn-filter">⌕ Filter by Person</button>
+  <button class="tool-btn secondary" id="btn-web">⬡ Family Web</button>
+  <button class="tool-btn secondary" id="btn-layers">≡ Layers</button>
+</div>
+
+<!-- ══ ADD GRAVE PANEL ══ -->
+<div class="panel" id="add-panel">
+  <div class="panel-header">
+    <span class="panel-title" id="add-panel-title">Add Grave</span>
+    <button class="panel-close" id="add-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <div class="steps">
+      <div class="step active" id="s1"></div>
+      <div class="step" id="s2"></div>
+      <div class="step" id="s3"></div>
+    </div>
+
+    <!-- Step 1: confirm type (graves only for now) -->
+    <div id="step1-content">
+      <p style="font-size:13px;color:var(--dark-brown);margin-bottom:16px;">Adding a grave record. Tap Next to place the location on the map.</p>
+      <button class="rr-btn" id="step1-next">Next: Place on Map →</button>
+    </div>
+
+    <!-- Step 2: place point -->
+    <div id="step2-content" style="display:none;">
+      <p style="font-size:13px;color:var(--dark-brown);margin-bottom:12px;">Tap the map to place the grave location.</p>
+
+      <label class="rr-label">Existing Cemetery (optional)</label>
+      <select class="rr-input" id="cemetery-select">
+        <option value="">— Select a cemetery —</option>
+      </select>
+
+      <div id="coord-display" style="font-size:11px;color:var(--brown);margin-top:8px;min-height:20px;"></div>
+      <button class="rr-btn secondary" id="step2-back" style="margin-top:12px;">← Back</button>
+    </div>
+
+    <!-- Step 3: fill details -->
+    <div id="step3-content" style="display:none;">
+      <label class="rr-label">Person Name *</label>
+      <input class="rr-input" id="g-name" placeholder="Full name"/>
+
+      <label class="rr-label">Date of Birth</label>
+      <input class="rr-input" id="g-dob" placeholder="YYYY-MM-DD"/>
+
+      <label class="rr-label">Date of Death</label>
+      <input class="rr-input" id="g-dod" placeholder="YYYY-MM-DD"/>
+
+      <label class="rr-label">Father</label>
+      <input class="rr-input" id="g-father" placeholder="Father's full name"/>
+
+      <label class="rr-label">Mother</label>
+      <input class="rr-input" id="g-mother" placeholder="Mother's full name"/>
+
+      <label class="rr-label">Cemetery Name</label>
+      <input class="rr-input" id="g-cemetery" placeholder="Cemetery name"/>
+
+      <label class="rr-label">County</label>
+      <input class="rr-input" id="g-county" placeholder="County"/>
+
+      <label class="rr-label">State</label>
+      <input class="rr-input" id="g-state" placeholder="State" value="KY"/>
+
+      <label class="rr-label">Notes</label>
+      <textarea class="rr-input" id="g-notes" placeholder="Additional details..."></textarea>
+
+      <label class="rr-label">Photo / Document</label>
+      <label style="display:block;padding:10px;background:#f5f5f5;border:1px dashed var(--sepia);border-radius:4px;cursor:pointer;text-align:center;font-size:12px;color:var(--brown);min-height:44px;display:flex;align-items:center;justify-content:center;">
+        📎 Add Photo or Document
+        <input type="file" id="g-attachment" style="display:none;" accept="image/*,.pdf,.doc,.docx" capture="environment"/>
+      </label>
+      <div id="attachment-name" style="font-size:11px;color:var(--brown);margin-top:4px;"></div>
+
+      <div id="add-status" class="status"></div>
+
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="rr-btn secondary" id="step3-back" style="flex:1;">← Back</button>
+        <button class="rr-btn" id="save-grave" style="flex:2;">Save Record</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FILTER PANEL ══ -->
+<div class="panel" id="filter-panel">
+  <div class="panel-header">
+    <span class="panel-title">Filter by Person</span>
+    <button class="panel-close" id="filter-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <div style="display:flex;gap:8px;">
+      <input class="rr-input" id="filter-search" placeholder="Enter name..." style="flex:1;"/>
+      <button class="rr-btn" id="filter-search-btn" style="width:80px;margin-top:0;">Search</button>
+    </div>
+    <button class="rr-btn secondary" id="browse-btn" style="margin-top:8px;">Browse All</button>
+    <div id="browse-list" style="display:none;"></div>
+
+    <div id="filter-active" style="display:none;margin-top:12px;">
+      <div style="font-size:11px;color:var(--brown);margin-bottom:8px;">Filtered to: <strong id="filter-name-display"></strong></div>
+      <button class="rr-btn" id="trace-btn" style="background:var(--red);">⬡ Trace Family Web</button>
+
+      <div id="trace-options" style="display:none;margin-top:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:11px;color:var(--brown);">Ancestors</span>
+          <div class="pill-row" id="ancestor-pills"></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:var(--brown);">Descendants</span>
+          <div class="pill-row" id="descendant-pills"></div>
+        </div>
+      </div>
+
+      <div id="web-legend" style="display:none;margin-top:12px;padding:10px;background:#f9f5ee;border:1px solid var(--sepia);border-radius:4px;">
+        <div style="font-size:9px;color:var(--brown);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;font-weight:bold;">Generation Key</div>
+        <div style="font-size:9px;color:var(--brown);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Ancestors</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(120,0,0);"></div>Gen 1 — Parents</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(170,40,40);opacity:0.8;"></div>Gen 2 — Grandparents</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(210,100,100);opacity:0.7;"></div>Gen 3</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(235,170,170);opacity:0.6;"></div>Gen 4</div>
+        <div style="font-size:9px;color:var(--brown);text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px;">Descendants</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(0,0,140);"></div>Gen 1 — Children</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(40,40,200);opacity:0.8;"></div>Gen 2 — Grandchildren</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(100,100,220);opacity:0.7;"></div>Gen 3</div>
+        <div class="legend-row"><div class="legend-line" style="background:rgb(170,170,235);opacity:0.6;"></div>Gen 4</div>
+      </div>
+
+      <button class="rr-btn secondary" id="clear-filter-btn" style="margin-top:8px;">Clear Filter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LAYERS PANEL ══ -->
+<div class="panel" id="layers-panel">
+  <div class="panel-header">
+    <span class="panel-title">Layers</span>
+    <button class="panel-close" id="layers-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <label style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--sepia);cursor:pointer;min-height:44px;">
+      <input type="checkbox" id="toggle-graves" checked style="width:18px;height:18px;"/>
+      <span style="font-size:13px;color:var(--dark-brown);">⚰ Graves</span>
+    </label>
+  </div>
+</div>
+
+<!-- ══ FEATURE PANEL (sepia) ══ -->
+<div id="feature-panel">
+  <div class="fp-header">
+    <span class="fp-title" id="fp-title">Record</span>
+    <button class="fp-close" id="fp-close">✕</button>
+  </div>
+  <img id="fp-photo" class="fp-photo" style="display:none;"/>
+  <div class="fp-body" id="fp-body"></div>
+  <div class="fp-actions">
+    <button class="fp-btn" id="fp-edit" style="background:var(--dark-brown);color:var(--cream);">✎ Edit</button>
+    <button class="fp-btn" id="fp-move" style="background:var(--mid);color:var(--cream);">⊕ Move</button>
+    <button class="fp-btn" id="fp-delete" style="background:var(--red);color:white;">✕ Delete</button>
+  </div>
+</div>
+
+<!-- ══ EDIT PANEL ══ -->
+<div class="panel" id="edit-panel">
+  <div class="panel-header">
+    <span class="panel-title">Edit Record</span>
+    <button class="panel-close" id="edit-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <div id="edit-fields"></div>
+
+    <!-- Attachments -->
+    <div style="margin-top:16px;border-top:1px solid var(--sepia);padding-top:12px;">
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Attachments</div>
+      <div id="edit-attachments"></div>
+      <label style="display:flex;align-items:center;justify-content:center;padding:10px;background:#f5f5f5;border:1px dashed var(--sepia);border-radius:4px;cursor:pointer;font-size:12px;color:var(--brown);margin-top:8px;min-height:44px;">
+        📎 Add Attachment
+        <input type="file" id="edit-attachment-input" style="display:none;" accept="image/*,.pdf,.doc,.docx"/>
+      </label>
+      <div id="edit-attachment-status" style="font-size:11px;color:var(--brown);margin-top:4px;"></div>
+    </div>
+
+    <div id="edit-status" class="status"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="rr-btn secondary" id="edit-cancel" style="flex:1;">Cancel</button>
+      <button class="rr-btn" id="edit-save" style="flex:2;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE INIT
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// State
+let map, basemaps, gravesLayer, lineageLayer, labelsLayer;
+let currentUser = null;
+let currentGraves = [];
+let placedPoint = null;
+let mapClickHandler = null;
+let moveHandler = null;
+let editingGrave = null;
+let currentFilterId = null;
+let currentFilterName = null;
+let ancestorGens = 2;
+let descendantGens = 2;
+const labeledNames = new Set();
+
+window.addEventListener('load', () => {
+
+// ══════════════════════════════════════════
+// MAP INIT
+// ══════════════════════════════════════════
+map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
+
+const basemaps = {
+  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+  }),
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+  }),
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© Esri', maxZoom: 19
+  }),
+  toner: L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
+    attribution: '© Stamen © OpenStreetMap', maxZoom: 19
+  })
+};
+
+// Apply sepia CSS filter to map tiles
+const style = document.createElement('style');
+style.textContent = '.leaflet-tile-pane { filter: sepia(30%) brightness(105%) contrast(95%); }';
+document.head.appendChild(style);
+
+basemaps.voyager.addTo(map);
+let currentBasemap = 'voyager';
+
+// Grave marker style
+const graveIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:12px;height:12px;background:#1a1a2e;border:2px solid #c8b89a;transform:rotate(45deg);"></div>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
+
+// Graphics layers
+gravesLayer = L.layerGroup().addTo(map);
+lineageLayer = L.layerGroup().addTo(map);
+labelsLayer = L.layerGroup().addTo(map);
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+async function checkAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) setUser(session.user);
+  else showAuthModal();
+}
+
+function setUser(user) {
+  currentUser = user;
+  document.getElementById('auth-modal').classList.add('hidden');
+  document.getElementById('login-btn').style.display = 'none';
+  document.getElementById('user-indicator').style.display = 'flex';
+  document.getElementById('user-email-display').textContent = user.email;
+  loadGraves();
+}
+
+function showAuthModal() {
+  document.getElementById('auth-modal').classList.remove('hidden');
+}
+
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const pwd = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('auth-submit');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pwd });
+  btn.disabled = false; btn.textContent = 'Sign In';
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+  else setUser(data.user);
+});
+
+document.getElementById('login-btn').addEventListener('click', showAuthModal);
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('login-btn').style.display = 'block';
+  document.getElementById('user-indicator').style.display = 'none';
+  showAuthModal();
+});
+
+// ══════════════════════════════════════════
+// LOAD GRAVES
+// ══════════════════════════════════════════
+async function loadGraves() {
+  const { data, error } = await sb.from('graves').select('*');
+  if (error) { console.error('Load graves failed:', error); return; }
+  currentGraves = data || [];
+  renderGraves();
+  populateCemeteryDropdown();
+}
+
+function renderGraves(filter) {
+  gravesLayer.clearLayers();
+  const graves = filter
+    ? currentGraves.filter(g => g.person_name?.toLowerCase().includes(filter.toLowerCase()) || g.id === filter)
+    : currentGraves;
+
+  graves.forEach(g => {
+    if (!g.location) return;
+    const coords = parseLocation(g.location);
+    if (!coords) return;
+    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    marker.on('click', () => openFeaturePanel(g));
+    marker.addTo(gravesLayer);
+  });
+}
+
+function parseLocation(loc) {
+  if (!loc) return null;
+  if (typeof loc === 'object' && loc.coordinates) {
+    return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
+  }
+  const match = String(loc).match(/POINT\(([^ ]+) ([^ )]+)\)/);
+  if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
+  return null;
+}
+
+function populateCemeteryDropdown() {
+  const select = document.getElementById('cemetery-select');
+  const cemeteries = {};
+  currentGraves.forEach(g => {
+    if (g.cemetery_name && !cemeteries[g.cemetery_name]) {
+      cemeteries[g.cemetery_name] = parseLocation(g.location);
+    }
+  });
+  select.innerHTML = '<option value="">— Select a cemetery —</option>';
+  Object.entries(cemeteries).sort().forEach(([name]) => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    select.appendChild(opt);
+  });
+}
+
+// ══════════════════════════════════════════
+// BASEMAP
+// ══════════════════════════════════════════
+document.getElementById('basemap-btn').addEventListener('click', () => {
+  const p = document.getElementById('basemap-panel');
+  p.style.display = p.style.display === 'block' ? 'none' : 'block';
+});
+
+document.querySelectorAll('.bm-option').forEach(el => {
+  el.addEventListener('click', () => {
+    const bm = el.dataset.bm;
+    if (bm === currentBasemap) { document.getElementById('basemap-panel').style.display = 'none'; return; }
+    map.removeLayer(basemaps[currentBasemap]);
+    basemaps[bm].addTo(map);
+    currentBasemap = bm;
+    document.querySelectorAll('.bm-option').forEach(o => o.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('basemap-panel').style.display = 'none';
+  });
+});
+
+// ══════════════════════════════════════════
+// LOCATE
+// ══════════════════════════════════════════
+document.getElementById('locate-btn').addEventListener('click', () => {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+  }, err => alert('Location unavailable: ' + err.message));
+});
+
+// ══════════════════════════════════════════
+// PANEL HELPERS
+// ══════════════════════════════════════════
+function openPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => { p.classList.remove('open'); });
+  document.getElementById('feature-panel').style.display = 'none';
+  document.getElementById(id).classList.add('open');
+}
+function closePanel(id) { document.getElementById(id).classList.remove('open'); }
+function closeAllPanels() {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+  document.getElementById('feature-panel').style.display = 'none';
+}
+
+// Toolbar buttons
+document.getElementById('btn-add').addEventListener('click', () => {
+  if (!currentUser) { showAuthModal(); return; }
+  resetAddPanel();
+  openPanel('add-panel');
+});
+document.getElementById('btn-filter').addEventListener('click', () => openPanel('filter-panel'));
+document.getElementById('btn-web').addEventListener('click', () => {
+  buildFullWeb();
+});
+document.getElementById('btn-layers').addEventListener('click', () => openPanel('layers-panel'));
+
+// Close buttons
+document.getElementById('add-close').addEventListener('click', () => { closePanel('add-panel'); resetAddPanel(); });
+document.getElementById('filter-close').addEventListener('click', () => closePanel('filter-panel'));
+document.getElementById('layers-close').addEventListener('click', () => closePanel('layers-panel'));
+document.getElementById('fp-close').addEventListener('click', () => { document.getElementById('feature-panel').style.display = 'none'; });
+document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
+document.getElementById('edit-cancel').addEventListener('click', () => closePanel('edit-panel'));
+
+// Layer toggle
+document.getElementById('toggle-graves').addEventListener('change', e => {
+  if (e.target.checked) gravesLayer.addTo(map);
+  else map.removeLayer(gravesLayer);
+});
+
+// ══════════════════════════════════════════
+// ADD GRAVE WORKFLOW
+// ══════════════════════════════════════════
+function showStep(n) {
+  ['step1-content','step2-content','step3-content'].forEach((id, i) => {
+    document.getElementById(id).style.display = i + 1 === n ? 'block' : 'none';
+  });
+  ['s1','s2','s3'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'step' + (i + 1 < n ? ' done' : i + 1 === n ? ' active' : '');
+  });
+}
+
+function resetAddPanel() {
+  placedPoint = null;
+  if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
+  document.getElementById('click-banner').style.display = 'none';
+  document.getElementById('coord-display').textContent = '';
+  ['g-name','g-dob','g-dod','g-father','g-mother','g-cemetery','g-county','g-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('g-state').value = 'KY';
+  document.getElementById('g-attachment').value = '';
+  document.getElementById('attachment-name').textContent = '';
+  document.getElementById('add-status').className = 'status';
+  document.getElementById('save-grave').textContent = 'Save Record';
+  document.getElementById('save-grave').disabled = false;
+  showStep(1);
+}
+
+document.getElementById('step1-next').addEventListener('click', async () => {
+  showStep(2);
+  document.getElementById('click-banner').style.display = 'block';
+  await populateCemeteryDropdown();
+  startMapClick();
+});
+
+document.getElementById('step2-back').addEventListener('click', () => {
+  if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
+  document.getElementById('click-banner').style.display = 'none';
+  showStep(1);
+});
+
+document.getElementById('step3-back').addEventListener('click', () => {
+  placedPoint = null;
+  document.getElementById('click-banner').style.display = 'block';
+  showStep(2);
+  startMapClick();
+});
+
+function startMapClick() {
+  if (mapClickHandler) map.off('click', mapClickHandler);
+  mapClickHandler = (e) => {
+    placedPoint = e.latlng;
+    document.getElementById('coord-display').textContent = `📍 ${placedPoint.lat.toFixed(5)}, ${placedPoint.lng.toFixed(5)}`;
+    document.getElementById('click-banner').style.display = 'none';
+    map.off('click', mapClickHandler); mapClickHandler = null;
+    showStep(3);
+  };
+  map.on('click', mapClickHandler);
+}
+
+// Cemetery dropdown auto-fill
+document.getElementById('cemetery-select').addEventListener('change', (e) => {
+  const name = e.target.value;
+  if (!name) return;
+  const grave = currentGraves.find(g => g.cemetery_name === name);
+  if (!grave) return;
+  const coords = parseLocation(grave.location);
+  if (coords) {
+    placedPoint = L.latLng(coords.lat, coords.lng);
+    document.getElementById('coord-display').textContent = `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+    document.getElementById('click-banner').style.display = 'none';
+    if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
+    map.setView([coords.lat, coords.lng], 16, { animate: true, duration: 1.2 });
+    // Pre-fill cemetery fields
+    document.getElementById('g-cemetery').value = name;
+    const county = grave.county || '';
+    const state = grave.state || 'KY';
+    document.getElementById('g-county').value = county;
+    document.getElementById('g-state').value = state;
+  }
+});
+
+// Attachment name display
+document.getElementById('g-attachment').addEventListener('change', e => {
+  const f = e.target.files[0];
+  document.getElementById('attachment-name').textContent = f ? `📄 ${f.name}` : '';
+});
+
+// Save grave
+document.getElementById('save-grave').addEventListener('click', async () => {
+  if (!placedPoint) { showStatus('add-status', 'No location set. Go back and tap the map.', 'error'); return; }
+  const name = document.getElementById('g-name').value.trim();
+  if (!name) { showStatus('add-status', 'Person name is required.', 'error'); return; }
+
+  const btn = document.getElementById('save-grave');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    // 1. Create person record
+    const personData = {
+      name,
+      dob: document.getElementById('g-dob').value || null,
+      dod: document.getElementById('g-dod').value || null,
+      father: document.getElementById('g-father').value.trim() || null,
+      mother: document.getElementById('g-mother').value.trim() || null,
+    };
+    const { data: person, error: pErr } = await sb.from('persons').insert(personData).select().single();
+    if (pErr) throw pErr;
+
+    // 2. Create grave record
+    const graveData = {
+      person_id: person.id,
+      person_name: name,
+      dob: personData.dob,
+      dod: personData.dod,
+      father: personData.father,
+      mother: personData.mother,
+      cemetery_name: document.getElementById('g-cemetery').value.trim() || null,
+      county: document.getElementById('g-county').value.trim() || null,
+      state: document.getElementById('g-state').value.trim() || null,
+      description: document.getElementById('g-notes').value.trim() || null,
+      location: `POINT(${placedPoint.lng} ${placedPoint.lat})`
+    };
+    const { data: grave, error: gErr } = await sb.from('graves').insert(graveData).select().single();
+    if (gErr) throw gErr;
+
+    // 3. Upload attachment if selected
+    const file = document.getElementById('g-attachment').files[0];
+    if (file) {
+      const path = `photos/${grave.id}/${Date.now()}_${file.name}`;
+      const { error: upErr } = await sb.storage.from('graves-media').upload(path, file);
+      if (!upErr) {
+        await sb.from('attachments').insert({
+          grave_id: grave.id, person_id: person.id,
+          file_name: file.name, file_path: path,
+          file_type: file.type.startsWith('image/') ? 'photo' : 'document',
+          file_size: file.size, mime_type: file.type
+        });
+      }
+    }
+
+    showStatus('add-status', `✓ Record saved for ${name}`, 'success');
+    btn.textContent = 'Saved!';
+    await loadGraves();
+    setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
+
+  } catch (err) {
+    console.error(err);
+    showStatus('add-status', `Save failed: ${err.message}`, 'error');
+    btn.disabled = false; btn.textContent = 'Save Record';
+  }
+});
+
+// ══════════════════════════════════════════
+// FEATURE PANEL
+// ══════════════════════════════════════════
+async function openFeaturePanel(grave) {
+  closeAllPanels();
+  editingGrave = grave;
+  document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
+
+  const fields = [
+    ['Date of Birth', grave.dob ? new Date(grave.dob).toLocaleDateString() : null],
+    ['Date of Death', grave.dod ? new Date(grave.dod).toLocaleDateString() : null],
+    ['Father', grave.father],
+    ['Mother', grave.mother],
+    ['Cemetery', grave.cemetery_name],
+    ['County', grave.county],
+    ['State', grave.state],
+    ['Notes', grave.description],
+  ];
+
+  document.getElementById('fp-body').innerHTML = fields
+    .filter(([, v]) => v)
+    .map(([l, v]) => `
+      <div class="fp-field">
+        <div class="fp-field-label">${l}</div>
+        <div class="fp-field-value">${v}</div>
+      </div>`)
+    .join('') || '<p style="color:var(--brown);font-size:12px;">No details recorded.</p>';
+
+  // Load photo
+  const photoEl = document.getElementById('fp-photo');
+  photoEl.style.display = 'none';
+  const { data: atts } = await sb.from('attachments').select('*').eq('grave_id', grave.id);
+  if (atts && atts.length > 0) {
+    const photo = atts.find(a => a.file_type === 'photo');
+    if (photo) {
+      const { data: url } = sb.storage.from('graves-media').getPublicUrl(photo.file_path);
+      photoEl.src = url.publicUrl;
+      photoEl.style.display = 'block';
+    }
+  }
+
+  document.getElementById('feature-panel').style.display = 'block';
+
+  // Zoom to grave
+  const coords = parseLocation(grave.location);
+  if (coords) map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
+
+  // Action buttons
+  document.getElementById('fp-edit').onclick = () => openEditPanel(grave);
+  document.getElementById('fp-move').onclick = () => startMoveMode(grave);
+  document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
+}
+
+// ══════════════════════════════════════════
+// EDIT PANEL
+// ══════════════════════════════════════════
+function openEditPanel(grave) {
+  document.getElementById('feature-panel').style.display = 'none';
+  editingGrave = grave;
+  const fieldDefs = [
+    { id: 'ep-name', label: 'Person Name', field: 'person_name', type: 'text' },
+    { id: 'ep-dob', label: 'Date of Birth', field: 'dob', type: 'date' },
+    { id: 'ep-dod', label: 'Date of Death', field: 'dod', type: 'date' },
+    { id: 'ep-father', label: 'Father', field: 'father', type: 'text' },
+    { id: 'ep-mother', label: 'Mother', field: 'mother', type: 'text' },
+    { id: 'ep-cemetery', label: 'Cemetery', field: 'cemetery_name', type: 'text' },
+    { id: 'ep-county', label: 'County', field: 'county', type: 'text' },
+    { id: 'ep-state', label: 'State', field: 'state', type: 'text' },
+    { id: 'ep-notes', label: 'Notes', field: 'description', type: 'textarea' },
+  ];
+
+  const container = document.getElementById('edit-fields');
+  container.innerHTML = '';
+  fieldDefs.forEach(def => {
+    const label = document.createElement('label');
+    label.className = 'rr-label'; label.textContent = def.label;
+    container.appendChild(label);
+    const val = grave[def.field] || '';
+    if (def.type === 'textarea') {
+      const ta = document.createElement('textarea');
+      ta.id = def.id; ta.className = 'rr-input'; ta.value = val;
+      container.appendChild(ta);
+    } else if (def.type === 'date') {
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.id = def.id; inp.className = 'rr-input';
+      inp.placeholder = 'YYYY-MM-DD';
+      if (val) { try { inp.value = new Date(val).toISOString().split('T')[0]; } catch(e) {} }
+      container.appendChild(inp);
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.id = def.id; inp.className = 'rr-input'; inp.value = val;
+      container.appendChild(inp);
+    }
+  });
+
+  // Load existing attachments
+  loadEditAttachments(grave.id);
+  document.getElementById('edit-status').className = 'status';
+  document.getElementById('edit-save').textContent = 'Save Changes';
+  document.getElementById('edit-save').disabled = false;
+  openPanel('edit-panel');
+}
+
+async function loadEditAttachments(graveId) {
+  const container = document.getElementById('edit-attachments');
+  container.innerHTML = '';
+  const { data: atts } = await sb.from('attachments').select('*').eq('grave_id', graveId);
+  if (!atts || atts.length === 0) {
+    container.innerHTML = '<div style="font-size:11px;color:var(--brown);">No attachments yet.</div>';
+    return;
+  }
+  atts.forEach(att => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0e8d8;';
+    const icon = att.file_type === 'photo' ? '🖼' : '📄';
+    row.innerHTML = `<span style="font-size:12px;color:var(--dark-brown);">${icon} ${att.file_name}</span>`;
+    container.appendChild(row);
+  });
+}
+
+document.getElementById('edit-attachment-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file || !editingGrave) return;
+  const statusEl = document.getElementById('edit-attachment-status');
+  statusEl.textContent = `Uploading ${file.name}...`;
+  const path = `photos/${editingGrave.id}/${Date.now()}_${file.name}`;
+  const { error } = await sb.storage.from('graves-media').upload(path, file);
+  if (!error) {
+    await sb.from('attachments').insert({
+      grave_id: editingGrave.id, person_id: editingGrave.person_id,
+      file_name: file.name, file_path: path,
+      file_type: file.type.startsWith('image/') ? 'photo' : 'document',
+      file_size: file.size, mime_type: file.type
+    });
+    statusEl.textContent = `✓ ${file.name} uploaded`;
+    loadEditAttachments(editingGrave.id);
+  } else {
+    statusEl.textContent = `Upload failed: ${error.message}`;
+  }
+  e.target.value = '';
+});
+
+document.getElementById('edit-save').addEventListener('click', async () => {
+  if (!editingGrave) return;
+  const btn = document.getElementById('edit-save');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const updates = {
+    person_name: document.getElementById('ep-name').value.trim() || null,
+    dob: document.getElementById('ep-dob').value || null,
+    dod: document.getElementById('ep-dod').value || null,
+    father: document.getElementById('ep-father').value.trim() || null,
+    mother: document.getElementById('ep-mother').value.trim() || null,
+    cemetery_name: document.getElementById('ep-cemetery').value.trim() || null,
+    county: document.getElementById('ep-county').value.trim() || null,
+    state: document.getElementById('ep-state').value.trim() || null,
+    description: document.getElementById('ep-notes').value.trim() || null,
+  };
+
+  const { error } = await sb.from('graves').update(updates).eq('id', editingGrave.id);
+  if (error) {
+    showStatus('edit-status', `Save failed: ${error.message}`, 'error');
+    btn.disabled = false; btn.textContent = 'Save Changes';
+    return;
+  }
+
+  // Sync to persons table
+  if (editingGrave.person_id) {
+    await sb.from('persons').update({
+      name: updates.person_name,
+      dob: updates.dob, dod: updates.dod,
+      father: updates.father, mother: updates.mother,
+    }).eq('id', editingGrave.person_id);
+  }
+
+  showStatus('edit-status', '✓ Record updated', 'success');
+  btn.textContent = 'Saved!';
+  await loadGraves();
+  setTimeout(() => closePanel('edit-panel'), 1500);
+});
+
+// ══════════════════════════════════════════
+// MOVE & DELETE
+// ══════════════════════════════════════════
+function startMoveMode(grave) {
+  document.getElementById('feature-panel').style.display = 'none';
+  document.getElementById('click-banner').textContent = 'Tap map to set new location — tap again to cancel';
+  document.getElementById('click-banner').style.display = 'block';
+  if (moveHandler) map.off('click', moveHandler);
+  moveHandler = async (e) => {
+    map.off('click', moveHandler); moveHandler = null;
+    document.getElementById('click-banner').style.display = 'none';
+    document.getElementById('click-banner').textContent = 'Tap map to place grave location';
+    const { error } = await sb.from('graves').update({
+      location: `POINT(${e.latlng.lng} ${e.latlng.lat})`
+    }).eq('id', grave.id);
+    if (!error) { await loadGraves(); }
+  };
+  map.on('click', moveHandler);
+}
+
+async function deleteGrave(grave) {
+  if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
+  await sb.from('graves').delete().eq('id', grave.id);
+  document.getElementById('feature-panel').style.display = 'none';
+  await loadGraves();
+}
+
+// ══════════════════════════════════════════
+// FILTER BY PERSON
+// ══════════════════════════════════════════
+async function applyFilter(name, personId) {
+  currentFilterName = name;
+  currentFilterId = personId;
+  document.getElementById('filter-name-display').textContent = name;
+  document.getElementById('filter-active').style.display = 'block';
+  document.getElementById('trace-options').style.display = 'block';
+  document.getElementById('web-legend').style.display = 'none';
+  lineageLayer.clearLayers();
+  labelsLayer.clearLayers();
+  renderGraves(name);
+
+  // Zoom to matching graves
+  const matching = currentGraves.filter(g =>
+    g.person_name?.toLowerCase().includes(name.toLowerCase())
+  );
+  if (matching.length > 0) {
+    const coords = matching.map(g => parseLocation(g.location)).filter(Boolean);
+    if (coords.length === 1) {
+      map.setView([coords[0].lat, coords[0].lng], 14, { animate: true, duration: 1 });
+    } else if (coords.length > 1) {
+      const bounds = L.latLngBounds(coords.map(c => [c.lat, c.lng]));
+      map.fitBounds(bounds, { padding: [40, 40], animate: true, duration: 1 });
+    }
+    // Open feature panel for single match
+    if (matching.length === 1) {
+      setTimeout(() => openFeaturePanel(matching[0]), 600);
+    }
+  }
+
+  buildGenerationPills();
+}
+
+function buildGenerationPills() {
+  ['ancestor-pills', 'descendant-pills'].forEach((id, isDesc) => {
+    const container = document.getElementById(id);
+    container.innerHTML = '';
+    const current = isDesc ? descendantGens : ancestorGens;
+    [1, 2, 3, 4].forEach(n => {
+      const pill = document.createElement('div');
+      pill.className = 'gen-pill' + (n <= current ? ' selected' : '');
+      pill.textContent = n;
+      pill.addEventListener('click', () => {
+        if (isDesc) descendantGens = n; else ancestorGens = n;
+        buildGenerationPills();
+      });
+      container.appendChild(pill);
+    });
+  });
+}
+
+document.getElementById('filter-search-btn').addEventListener('click', async () => {
+  const input = document.getElementById('filter-search').value.trim();
+  if (!input) return;
+  const { data } = await sb.from('persons').select('id, name').ilike('name', `%${input}%`).limit(1);
+  const person = data?.[0];
+  applyFilter(person ? person.name : input, person?.id || null);
+});
+
+document.getElementById('filter-search').addEventListener('keydown', async e => {
+  if (e.key !== 'Enter') return;
+  document.getElementById('filter-search-btn').click();
+});
+
+document.getElementById('browse-btn').addEventListener('click', async () => {
+  const list = document.getElementById('browse-list');
+  if (list.style.display === 'block') { list.style.display = 'none'; return; }
+  list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--brown);">Loading...</div>';
+  list.style.display = 'block';
+  const { data } = await sb.from('persons').select('id, name, dob, dod').order('name');
+  list.innerHTML = '';
+  (data || []).forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'browse-item';
+    const dob = p.dob ? new Date(p.dob).getFullYear() : '?';
+    const dod = p.dod ? new Date(p.dod).getFullYear() : '?';
+    const dates = (p.dob || p.dod) ? `${dob}–${dod}` : '';
+    div.innerHTML = `<span>${p.name}</span><span class="dates">${dates}</span>`;
+    div.addEventListener('click', () => {
+      list.style.display = 'none';
+      document.getElementById('filter-search').value = p.name;
+      applyFilter(p.name, p.id);
+    });
+    list.appendChild(div);
+  });
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--brown);">No records yet.</div>';
+  }
+});
+
+document.getElementById('clear-filter-btn').addEventListener('click', () => {
+  currentFilterName = null; currentFilterId = null;
+  document.getElementById('filter-active').style.display = 'none';
+  document.getElementById('web-legend').style.display = 'none';
+  document.getElementById('filter-search').value = '';
+  lineageLayer.clearLayers();
+  labelsLayer.clearLayers();
+  renderGraves();
+  map.setView([37.8, -85.3], 7, { animate: true, duration: 1 });
+});
+
+// ══════════════════════════════════════════
+// LINEAGE TRACE
+// ══════════════════════════════════════════
+const ancestorColors = [
+  [120,0,0,230],[170,40,40,200],[210,100,100,170],[235,170,170,140]
+];
+const descendantColors = [
+  [0,0,140,230],[40,40,200,200],[100,100,220,170],[170,170,235,140]
+];
+
+function toRgba(c) { return `rgba(${c[0]},${c[1]},${c[2]},${(c[3]||230)/255})`; }
+function toWeight(gen) { return Math.max(1, 3 - gen * 0.5); }
+
+document.getElementById('trace-btn').addEventListener('click', async () => {
+  if (!currentFilterName) return;
+  const btn = document.getElementById('trace-btn');
+  btn.disabled = true; btn.textContent = '⬡ Tracing...';
+  await traceFromPerson(currentFilterName);
+  btn.disabled = false;
+  btn.textContent = '⬡ Trace Family Web';
+  document.getElementById('web-legend').style.display = 'block';
+});
+
+async function traceFromPerson(startName) {
+  lineageLayer.clearLayers();
+  labelsLayer.clearLayers();
+  labeledNames.clear();
+
+  const gravesByName = {};
+  currentGraves.forEach(g => {
+    const n = (g.person_name || '').trim().toLowerCase();
+    if (n) gravesByName[n] = g;
+  });
+
+  const { data: persons } = await sb.from('persons').select('name, father, mother');
+  const personsByName = {};
+  const childrenByParent = {};
+  (persons || []).forEach(p => {
+    const n = (p.name || '').trim().toLowerCase();
+    const f = (p.father || '').trim().toLowerCase();
+    const m = (p.mother || '').trim().toLowerCase();
+    if (n) {
+      personsByName[n] = { father: f, mother: m };
+      if (f) { if (!childrenByParent[f]) childrenByParent[f] = []; childrenByParent[f].push(n); }
+      if (m) { if (!childrenByParent[m]) childrenByParent[m] = []; childrenByParent[m].push(n); }
+    }
+  });
+
+  const startKey = startName.trim().toLowerCase();
+  const startGrave = gravesByName[startKey];
+  const visitedA = new Set(), visitedD = new Set();
+  const involvedNames = new Set([startKey]);
+  let lineCount = 0;
+
+  // Label start person
+  if (startGrave) {
+    const coords = parseLocation(startGrave.location);
+    if (coords) addLabel(startName, [coords.lat, coords.lng], [26,26,46,255], true);
+  }
+
+  function traceAncestors(name, gen) {
+    if (gen > ancestorGens || visitedA.has(name) || !name) return;
+    visitedA.add(name);
+    const childGrave = gravesByName[name];
+    const person = personsByName[name];
+    if (!person) return;
+    const color = ancestorColors[gen - 1] || ancestorColors[3];
+
+    [['father', person.father], ['mother', person.mother]].forEach(([, parentName]) => {
+      if (!parentName || !gravesByName[parentName] || !childGrave) return;
+      const childCoords = parseLocation(childGrave.location);
+      const parentCoords = parseLocation(gravesByName[parentName].location);
+      if (!childCoords || !parentCoords) return;
+      L.polyline([[childCoords.lat, childCoords.lng],[parentCoords.lat, parentCoords.lng]], {
+        color: toRgba(color), weight: toWeight(gen), opacity: 1
+      }).addTo(lineageLayer);
+      addLabel(gravesByName[parentName].person_name, [parentCoords.lat, parentCoords.lng], color, false);
+      involvedNames.add(parentName);
+      lineCount++;
+      traceAncestors(parentName, gen + 1);
+    });
+  }
+
+  function traceDescendants(name, gen) {
+    if (gen > descendantGens || visitedD.has(name) || !name) return;
+    visitedD.add(name);
+    const parentGrave = gravesByName[name];
+    if (!parentGrave) return;
+    const color = descendantColors[gen - 1] || descendantColors[3];
+    (childrenByParent[name] || []).forEach(childName => {
+      const childGrave = gravesByName[childName];
+      if (!childGrave) return;
+      const parentCoords = parseLocation(parentGrave.location);
+      const childCoords = parseLocation(childGrave.location);
+      if (!parentCoords || !childCoords) return;
+      L.polyline([[parentCoords.lat, parentCoords.lng],[childCoords.lat, childCoords.lng]], {
+        color: toRgba(color), weight: toWeight(gen), opacity: 1, dashArray: gen > 2 ? '6,4' : null
+      }).addTo(lineageLayer);
+      addLabel(childGrave.person_name, [childCoords.lat, childCoords.lng], color, false);
+      involvedNames.add(childName);
+      lineCount++;
+      traceDescendants(childName, gen + 1);
+    });
+  }
+
+  traceAncestors(startKey, 1);
+  traceDescendants(startKey, 1);
+
+  // Filter graves to only those in trace
+  renderGravesById([...involvedNames]);
+
+  // Zoom to extent
+  const allCoords = [...involvedNames]
+    .map(n => gravesByName[n]).filter(Boolean)
+    .map(g => parseLocation(g.location)).filter(Boolean)
+    .map(c => [c.lat, c.lng]);
+  if (allCoords.length > 1) {
+    map.fitBounds(L.latLngBounds(allCoords), { padding: [40, 40], animate: true, duration: 1.2 });
+  } else if (allCoords.length === 1) {
+    map.setView(allCoords[0], 14, { animate: true, duration: 1 });
+  }
+
+  return lineCount;
+}
+
+function renderGravesById(names) {
+  gravesLayer.clearLayers();
+  const nameSet = new Set(names.map(n => n.toLowerCase()));
+  currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
+    const coords = parseLocation(g.location);
+    if (!coords) return;
+    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    marker.on('click', () => openFeaturePanel(g));
+    marker.addTo(gravesLayer);
+  });
+}
+
+const labeledNames = new Set();
+function addLabel(name, latlng, color, isSelected) {
+  if (!name) return;
+  const display = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  if (labeledNames.has(display)) return;
+  labeledNames.add(display);
+  const c = isSelected ? '#e8d5b0' : `rgba(${color[0]},${color[1]},${color[2]},0.9)`;
+  const bg = isSelected ? '#1a1a2e' : 'white';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="background:${bg};color:${c};padding:2px 6px;border-radius:2px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid rgba(${color[0]},${color[1]},${color[2]},0.4);box-shadow:0 1px 4px rgba(0,0,0,0.2);">${display}</div>`,
+    iconAnchor: [-4, 6]
+  });
+  L.marker(latlng, { icon, interactive: false, zIndexOffset: -100 }).addTo(labelsLayer);
+}
+
+// ══════════════════════════════════════════
+// SHOW ALL FAMILY WEB
+// ══════════════════════════════════════════
+async function buildFullWeb() {
+  lineageLayer.clearLayers();
+  labelsLayer.clearLayers();
+  labeledNames.clear();
+  const btn = document.getElementById('btn-web');
+  btn.textContent = '⬡ Building...';
+  btn.disabled = true;
+
+  const gravesByName = {};
+  currentGraves.forEach(g => {
+    const n = (g.person_name || '').trim().toLowerCase();
+    if (n) gravesByName[n] = g;
+  });
+
+  const { data: persons } = await sb.from('persons').select('name, father, mother');
+  let count = 0;
+  (persons || []).forEach(p => {
+    const childName = (p.name || '').trim().toLowerCase();
+    const childGrave = gravesByName[childName];
+    if (!childGrave) return;
+    const childCoords = parseLocation(childGrave.location);
+    if (!childCoords) return;
+
+    [p.father, p.mother].forEach((parentName, i) => {
+      const pn = (parentName || '').trim().toLowerCase();
+      if (!pn || !gravesByName[pn]) return;
+      const parentCoords = parseLocation(gravesByName[pn].location);
+      if (!parentCoords) return;
+      L.polyline([[childCoords.lat, childCoords.lng],[parentCoords.lat, parentCoords.lng]], {
+        color: i === 0 ? 'rgba(100,0,0,0.7)' : 'rgba(0,0,100,0.7)',
+        weight: 1.5, opacity: 1
+      }).addTo(lineageLayer);
+      count++;
+    });
+  });
+
+  btn.textContent = count > 0 ? `⬡ Hide Web (${count})` : '⬡ Family Web';
+  btn.disabled = false;
+  btn.classList.toggle('active');
+
+  if (count > 0) {
+    const allCoords = currentGraves.map(g => parseLocation(g.location)).filter(Boolean).map(c => [c.lat, c.lng]);
+    if (allCoords.length > 1) map.fitBounds(L.latLngBounds(allCoords), { padding: [40,40] });
+  }
+}
+
+// ══════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = `status ${type}`;
+}
+
+// Offline detection
+window.addEventListener('online', () => { document.getElementById('offline-banner').style.display = 'none'; });
+window.addEventListener('offline', () => { document.getElementById('offline-banner').style.display = 'block'; });
+if (!navigator.onLine) document.getElementById('offline-banner').style.display = 'block';
+
+// Close basemap panel on map click
+map.on('click', () => { document.getElementById('basemap-panel').style.display = 'none'; });
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+checkAuth();
+
+}); // end window.addEventListener('load')
+</script>
+</body>
+</html>
