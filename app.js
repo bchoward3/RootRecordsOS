@@ -40,6 +40,15 @@ const basemaps = {
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
   }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+  }),
+  terrain: L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/terrain/{z}/{x}/{y}.jpg', {
+    attribution: '© Stamen © OpenStreetMap', maxZoom: 18
+  }),
+  topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '© USGS', maxZoom: 16
+  }),
   light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
   }),
@@ -56,7 +65,7 @@ const basemaps = {
 
 // Apply sepia CSS filter to map tiles
 const style = document.createElement('style');
-style.textContent = '.leaflet-tile-pane { filter: sepia(15%) brightness(100%) contrast(100%); }';
+style.textContent = '.leaflet-tile-pane { filter: sepia(20%) brightness(88%) contrast(108%) saturate(80%); }';
 document.head.appendChild(style);
 
 basemaps.voyager.addTo(map);
