@@ -149,8 +149,9 @@ async function loadGraves() {
 
 function renderGraves(filter) {
   gravesLayer.clearLayers();
+  console.log('Rendering graves:', currentGraves.length, currentGraves);
   const graves = filter
-    ? currentGraves.filter(g => g.person_name?.toLowerCase().includes(filter.toLowerCase()) || g.id === filter)
+    ? currentGraves.filter(g => g.person_name?.toLowerCase().includes(filter.toLowerCase()))
     : currentGraves;
 
   graves.forEach(g => {
