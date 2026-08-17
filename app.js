@@ -38,7 +38,7 @@ window.addEventListener('load', () => {
 // Presently set to view of Kentucky for personal research
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
-// Basemap gallery - these will most likely be changed/altered depending on what is available.
+// Basemap gallery - these will most likely be changed/altered before final submission. 
 const basemaps = {
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
