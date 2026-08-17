@@ -16,7 +16,7 @@
 
 html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink); color: var(--parchment); overflow: hidden; }
 
-/* ── Header ── */
+/* ── Header with application name── */
 #header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   height: calc(48px + var(--safe-top));
@@ -46,7 +46,7 @@ html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink)
   z-index: 1;
 }
 
-/* ── Bottom toolbar ── */
+/* ── Bottom toolbar (Add Grave, Filter by Person, Family Web, Layers) ── */
 #toolbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
   height: calc(60px + var(--safe-bot));
@@ -202,7 +202,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .leaflet-control-zoom { border: 1px solid var(--sepia) !important; }
 .leaflet-control-zoom a { color: var(--dark-brown) !important; font-family: 'Georgia', serif !important; }
 
-/* ── Locate button ── */
+/* ── Find My Location button ── */
 #locate-btn {
   position: fixed; right: 12px; bottom: calc(80px + var(--safe-bot));
   width: 44px; height: 44px; border-radius: 50%;
@@ -231,7 +231,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .bm-option:hover { background: var(--parchment); }
 .bm-option.active { font-weight: bold; color: var(--red); }
 
-/* ── Dynamic grave icon for dark basemaps ── */
+/* ── Dynamic grave icon for dark basemaps (still having some issues with this - will correct soon) ── */
 .grave-icon-light {
   filter: invert(1) sepia(1) saturate(2) brightness(2);
 }

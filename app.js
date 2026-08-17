@@ -1,6 +1,6 @@
 
 // ══════════════════════════════════════════
-// SUPABASE INIT
+// Supabase Init
 // ══════════════════════════════════════════
 const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
@@ -32,10 +32,11 @@ const labeledNames = new Set();
 window.addEventListener('load', () => {
 
 // ══════════════════════════════════════════
-// MAP INIT
+// Map Init
 // ══════════════════════════════════════════
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
+// Basemap gallery - these will most likely be changed/altered depending on what is available.
 const basemaps = {
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
@@ -63,15 +64,16 @@ const basemaps = {
   })
 };
 
-// Apply sepia CSS filter to map tiles
+// Apply sepia CSS filter to map tiles to replicate an antique map look.
 const style = document.createElement('style');
 style.textContent = '.leaflet-tile-pane { filter: sepia(20%) brightness(80%) contrast(112%) saturate(80%); }';
 document.head.appendChild(style);
 
+// Default basemap is the Carto Voyager.
 basemaps.voyager.addTo(map);
 let currentBasemap = 'voyager';
 
-// Grave marker style
+// Grave marker style - icons provided courtesy Noun Project courtey Abdul Matic.
 function getGraveIcon(dark = false) {
   const fill = dark ? '#e8d5b0' : '#1a1a2e';
   const border = dark ? '#c8b89a' : '#c8b89a';
@@ -83,13 +85,13 @@ function getGraveIcon(dark = false) {
   });
 }
 
-// Graphics layers
+// Graphics layers.
 gravesLayer = L.layerGroup().addTo(map);
 lineageLayer = L.layerGroup().addTo(map);
 labelsLayer = L.layerGroup().addTo(map);
 
 // ══════════════════════════════════════════
-// AUTH
+// Authorization (sign in via email if permitted user to create/edit records - otherwise view only)
 // ══════════════════════════════════════════
 async function checkAuth() {
   sb.auth.onAuthStateChange((event, session) => {
@@ -146,7 +148,7 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
-// LOAD GRAVES
+// Load Graves records
 // ══════════════════════════════════════════
 async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
@@ -212,7 +214,7 @@ function populateCemeteryDropdown() {
 }
 
 // ══════════════════════════════════════════
-// BASEMAP
+// Basemap
 // ══════════════════════════════════════════
 document.getElementById('basemap-btn').addEventListener('click', () => {
   const p = document.getElementById('basemap-panel');
@@ -233,7 +235,7 @@ document.querySelectorAll('.bm-option').forEach(el => {
 });
 
 // ══════════════════════════════════════════
-// LOCATE
+// Find My Location
 // ══════════════════════════════════════════
 document.getElementById('locate-btn').addEventListener('click', () => {
   if (!navigator.geolocation) return;
@@ -243,7 +245,7 @@ document.getElementById('locate-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
-// PANEL HELPERS
+// Panel helpers
 // ══════════════════════════════════════════
 function openPanel(id) {
   document.querySelectorAll('.panel').forEach(p => { p.classList.remove('open'); });
@@ -283,7 +285,7 @@ document.getElementById('toggle-graves').addEventListener('change', e => {
 });
 
 // ══════════════════════════════════════════
-// ADD GRAVE WORKFLOW
+// Add Grave record workflow
 // ══════════════════════════════════════════
 function showStep(n) {
   ['step1-content','step2-content','step3-content'].forEach((id, i) => {
@@ -344,7 +346,7 @@ function startMapClick() {
   map.on('click', mapClickHandler);
 }
 
-// Cemetery dropdown auto-fill
+// Cemetery dropdown with auto fill
 document.getElementById('cemetery-select').addEventListener('change', (e) => {
   const name = e.target.value;
   if (!name) return;
@@ -442,13 +444,14 @@ document.getElementById('save-grave').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
-// FEATURE PANEL
+// Feature Panel
 // ══════════════════════════════════════════
 async function openFeaturePanel(grave) {
   closeAllPanels();
   editingGrave = grave;
   document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
 
+  // POSSIBLY ADD SPOUSE FIELD IN THE FUTURE!!! COME BACK TO THIS. 
   const fields = [
     ['Date of Birth', grave.dob ? new Date(grave.dob).toLocaleDateString() : null],
     ['Date of Death', grave.dod ? new Date(grave.dod).toLocaleDateString() : null],
@@ -482,7 +485,7 @@ async function openFeaturePanel(grave) {
     }
   }
 
-  // Show/hide action buttons based on auth state
+  // Show/hide action buttons based on auth status (signed in or not)
   const isAuth = !!currentUser;
   document.getElementById('fp-edit').style.display = isAuth ? 'block' : 'none';
   document.getElementById('fp-move').style.display = isAuth ? 'block' : 'none';
@@ -555,7 +558,7 @@ async function openFeaturePanel(grave) {
 }
 
 // ══════════════════════════════════════════
-// EDIT PANEL
+// Edit Panel
 // ══════════════════════════════════════════
 function openEditPanel(grave) {
   document.getElementById('feature-panel').style.display = 'none';
@@ -683,7 +686,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
-// MOVE & DELETE
+// Move/Delete record
 // ══════════════════════════════════════════
 function startMoveMode(grave) {
   document.getElementById('feature-panel').style.display = 'none';
@@ -713,7 +716,7 @@ async function deleteGrave(grave) {
 }
 
 // ══════════════════════════════════════════
-// FILTER BY PERSON
+// Filter by Person
 // ══════════════════════════════════════════
 async function applyFilter(name, personId) {
   currentFilterName = name;
@@ -816,7 +819,7 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
-// LINEAGE TRACE
+// Lineage trace/family web
 // ══════════════════════════════════════════
 const ancestorColors = [
   [120,0,0,230],[170,40,40,200],[210,100,100,170],[235,170,170,140]
@@ -1033,7 +1036,7 @@ async function buildFullWeb() {
 }
 
 // ══════════════════════════════════════════
-// UTILITIES
+// Utilities
 // ══════════════════════════════════════════
 function showStatus(id, msg, type) {
   const el = document.getElementById(id);
