@@ -34,6 +34,8 @@ window.addEventListener('load', () => {
 // ══════════════════════════════════════════
 // Map Init
 // ══════════════════════════════════════════
+
+// Presently set to view of Kentucky for personal research
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
 // Basemap gallery - these will most likely be changed/altered depending on what is available.
