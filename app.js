@@ -15,7 +15,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 });
 
-// State
+// Statements
 let map, basemaps, gravesLayer, lineageLayer, labelsLayer;
 let currentUser = null;
 let currentGraves = [];
