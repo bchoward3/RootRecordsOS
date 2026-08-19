@@ -17,6 +17,7 @@ let currentFilterId = null;
 let currentFilterName = null;
 let ancestorGens = 2;
 let descendantGens = 2;
+let capturedPhotoBlob = null;
 const labeledNames = new Set();
 
 window.addEventListener('load', () => {
@@ -251,9 +252,6 @@ window.dismissGpsTip = function() {
   localStorage.setItem('rr-gps-tip-dismissed', '1');
   document.getElementById('gps-tip').style.display = 'none';
 };
-
-// Compressed photo blob stored here between steps
-let capturedPhotoBlob = null;
 
 // Image compression via canvas
 async function compressImage(file, maxWidth = 1200, quality = 0.8) {
