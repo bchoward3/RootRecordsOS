@@ -1074,6 +1074,58 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
+// ── Draggable feature panel ──
+(function makePanelDraggable() {
+  const panel = document.getElementById('feature-panel');
+  let isDragging = false, dragStartX, dragStartY, panelStartX, panelStartY;
+
+  panel.style.cursor = 'grab';
+
+  panel.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    panelStartX = parseInt(panel.style.left) || 0;
+    panelStartY = parseInt(panel.style.top) || 0;
+    panel.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
+    panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    panel.style.cursor = 'grab';
+  });
+
+  // Touch support for iPhone
+  panel.addEventListener('touchstart', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
+    const touch = e.touches[0];
+    isDragging = true;
+    dragStartX = touch.clientX;
+    dragStartY = touch.clientY;
+    panelStartX = parseInt(panel.style.left) || 0;
+    panelStartY = parseInt(panel.style.top) || 0;
+    e.preventDefault();
+  }, { passive: false });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    panel.style.left = `${panelStartX + touch.clientX - dragStartX}px`;
+    panel.style.top = `${panelStartY + touch.clientY - dragStartY}px`;
+    e.preventDefault();
+  }, { passive: false });
+
+  panel.addEventListener('touchend', () => { isDragging = false; });
+})();
+
 checkAuth();
 
 }); // end window.addEventListener('load')

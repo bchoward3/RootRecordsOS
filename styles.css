@@ -142,13 +142,12 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 }
 .fp-title { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; flex: 1; }
 .fp-close { background: none; border: none; color: var(--cream); font-size: 20px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
-.fp-photo { width: 100%; max-height: 180px; object-fit: cover; border-bottom: 1px solid var(--sepia); }
+.fp-photo { width: 100%; max-height: 240px; object-fit: contain; background: #1a1a2e; border-bottom: 1px solid var(--sepia); }
+.fp-header { padding: 8px 12px; cursor: grab; }
 .fp-body { padding: 8px 12px; }
 .fp-field { margin-bottom: 6px; }
 .fp-field-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--sepia); padding-bottom: 1px; margin-bottom: 2px; }
 .fp-field-value { font-size: 11px; color: var(--dark-brown); }
-.fp-photo { width: 100%; max-height: 120px; object-fit: cover; border-bottom: 1px solid var(--sepia); }
-.fp-header { padding: 8px 12px; }
 .fp-actions { padding: 8px 12px; gap: 4px; }
 .fp-btn { padding: 6px; font-size: 10px; min-height: 36px; }
 
