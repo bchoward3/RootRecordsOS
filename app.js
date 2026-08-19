@@ -64,6 +64,7 @@ const graveIcon = L.divIcon({
 gravesLayer = L.layerGroup().addTo(map);
 lineageLayer = L.layerGroup().addTo(map);
 labelsLayer = L.layerGroup().addTo(map);
+mapLabelsLayer = L.layerGroup().addTo(map);
 
 // ══════════════════════════════════════════
 // AUTH
@@ -253,9 +254,7 @@ document.getElementById('extent-btn').addEventListener('click', () => {
 });
 
 // ── Labels system ──
-let labelsVisible = false;
-let labelType = 'name';
-const mapLabelsLayer = L.layerGroup().addTo(map);
+// mapLabelsLayer initialized after map is created
 
 function getLabelText(grave) {
   const name = grave.person_name || '';
@@ -358,6 +357,9 @@ let capturedAudioBlob = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
+let labelsVisible = false;
+let labelType = 'name';
+let mapLabelsLayer;
 let labelsActive = false;
 let labelType = 'name';
 let labelZoomThreshold = 12;
