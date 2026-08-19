@@ -739,9 +739,35 @@ function startMoveMode(grave) {
 
 async function deleteGrave(grave) {
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
-  await sb.from('graves').delete().eq('id', grave.id);
-  document.getElementById('feature-panel').style.display = 'none';
-  await loadGraves();
+  
+  try {
+    // 1. Get attachments to delete from storage
+    const { data: atts } = await sb.from('attachments').select('file_path').eq('grave_id', grave.id);
+    
+    // 2. Delete files from storage
+    if (atts && atts.length > 0) {
+      const paths = atts.map(a => a.file_path);
+      await sb.storage.from('graves-media').remove(paths);
+    }
+
+    // 3. Delete attachment records
+    await sb.from('attachments').delete().eq('grave_id', grave.id);
+
+    // 4. Delete grave record
+    await sb.from('graves').delete().eq('id', grave.id);
+
+    // 5. Delete persons record
+    if (grave.person_id) {
+      await sb.from('persons').delete().eq('id', grave.person_id);
+    }
+
+    document.getElementById('feature-panel').style.display = 'none';
+    await loadGraves();
+
+  } catch (err) {
+    console.error('Delete failed:', err);
+    alert('Delete failed — please try again.');
+  }
 }
 
 // ══════════════════════════════════════════
