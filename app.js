@@ -495,23 +495,29 @@ document.getElementById('save-grave').addEventListener('click', async () => {
     if (gErr) throw gErr;
 
     // 3. Upload compressed photo if captured
+    console.log('capturedPhotoBlob:', capturedPhotoBlob);
     if (capturedPhotoBlob) {
       try {
         const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
-        const { error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
+        console.log('Uploading to path:', path);
+        const { data: upData, error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
           contentType: 'image/jpeg'
         });
+        console.log('Upload result:', upData, upErr);
         if (!upErr) {
-          await sb.from('attachments').insert({
+          const { data: attData, error: attErr } = await sb.from('attachments').insert({
             grave_id: grave.id, person_id: person.id,
             file_name: 'headstone.jpg', file_path: path,
             file_type: 'photo', file_size: capturedPhotoBlob.size,
             mime_type: 'image/jpeg'
           });
+          console.log('Attachment insert:', attData, attErr);
         }
       } catch (upErr) {
         console.warn('Photo upload failed:', upErr);
       }
+    } else {
+      console.log('No photo to upload');
     }
 
     showStatus('add-status', `✓ Record saved for ${name}`, 'success');
