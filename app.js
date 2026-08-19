@@ -561,11 +561,16 @@ async function openFeaturePanel(grave) {
   if (atts && atts.length > 0) {
     const photo = atts.find(a => a.file_type === 'photo');
     if (photo) {
-      const { data: url } = sb.storage.from('graves-media').getPublicUrl(photo.file_path);
-      photoEl.src = url.publicUrl;
-      photoEl.style.display = 'block';
+      const { data: signedData, error: signErr } = await sb.storage
+        .from('graves-media')
+        .createSignedUrl(photo.file_path, 3600);
+      if (!signErr && signedData?.signedUrl) {
+        photoEl.src = signedData.signedUrl;
+        photoEl.style.display = 'block';
+      }
     }
   }
+  
 
   document.getElementById('feature-panel').style.display = 'block';
 
