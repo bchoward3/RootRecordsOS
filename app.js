@@ -1,21 +1,11 @@
-
 // ══════════════════════════════════════════
-// Supabase Init
+// SUPABASE INIT
 // ══════════════════════════════════════════
 const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    storage: window.localStorage,
-    storageKey: 'rootrecords-auth',
-    detectSessionInUrl: true,
-  }
-});
-
-// Statements
+// State
 let map, basemaps, gravesLayer, lineageLayer, labelsLayer;
 let currentUser = null;
 let currentGraves = [];
@@ -32,25 +22,13 @@ const labeledNames = new Set();
 window.addEventListener('load', () => {
 
 // ══════════════════════════════════════════
-// Map Init
+// MAP INIT
 // ══════════════════════════════════════════
-
-// Presently set to view of Kentucky for personal research
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
-// Basemap gallery - these will most likely be changed/altered before final submission. 
 const basemaps = {
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
-  }),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
-  }),
-  terrain: L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenTopoMap © OpenStreetMap', maxZoom: 17
-  }),
-  topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© USGS', maxZoom: 16
   }),
   light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
@@ -66,52 +44,34 @@ const basemaps = {
   })
 };
 
-// Apply sepia CSS filter to map tiles to replicate an antique map look.
+// Apply sepia CSS filter to map tiles
 const style = document.createElement('style');
-style.textContent = '.leaflet-tile-pane { filter: sepia(20%) brightness(80%) contrast(112%) saturate(80%); }';
+style.textContent = '.leaflet-tile-pane { filter: sepia(15%) brightness(100%) contrast(100%); }';
 document.head.appendChild(style);
 
-// Default basemap is the Carto Voyager.
 basemaps.voyager.addTo(map);
 let currentBasemap = 'voyager';
 
-// Grave marker style - icons provided courtesy Noun Project courtey Abdul Matic.
-function getGraveIcon(dark = false) {
-  const fill = dark ? '#e8d5b0' : '#1a1a2e';
-  const border = dark ? '#c8b89a' : '#c8b89a';
-  return L.icon({
-    iconUrl: 'grave.png',
-    iconSize: [20, 28],
-    iconAnchor: [10, 28],
-    className: dark ? 'grave-icon-light' : 'grave-icon-dark'
-  });
-}
+// Grave marker style
+const graveIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:12px;height:12px;background:#1a1a2e;border:2px solid #c8b89a;transform:rotate(45deg);"></div>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
 
-// Graphics layers.
+// Graphics layers
 gravesLayer = L.layerGroup().addTo(map);
 lineageLayer = L.layerGroup().addTo(map);
 labelsLayer = L.layerGroup().addTo(map);
 
 // ══════════════════════════════════════════
-// Authorization (sign in via email if permitted user to create/edit records - otherwise view only)
+// AUTH
 // ══════════════════════════════════════════
 async function checkAuth() {
-  sb.auth.onAuthStateChange((event, session) => {
-    if (session) {
-      setUser(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      document.getElementById('login-btn').style.display = 'block';
-      document.getElementById('user-indicator').style.display = 'none';
-    }
-  });
-
   const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    setUser(session.user);
-  } else {
-    await loadGraves();
-  }
+  if (session) setUser(session.user);
+  else showAuthModal();
 }
 
 function setUser(user) {
@@ -150,52 +110,39 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
-// Load Graves records
+// LOAD GRAVES
 // ══════════════════════════════════════════
 async function loadGraves() {
-  const { data, error } = await sb.rpc('get_graves_geojson');
+  const { data, error } = await sb.from('graves').select('*');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
-  console.log('Loaded graves:', currentGraves.length);
   renderGraves();
   populateCemeteryDropdown();
 }
 
 function renderGraves(filter) {
   gravesLayer.clearLayers();
-  console.log('Rendering graves:', currentGraves.length, currentGraves);
   const graves = filter
-    ? currentGraves.filter(g => g.person_name?.toLowerCase().includes(filter.toLowerCase()))
+    ? currentGraves.filter(g => g.person_name?.toLowerCase().includes(filter.toLowerCase()) || g.id === filter)
     : currentGraves;
 
   graves.forEach(g => {
     if (!g.location) return;
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const icon = L.icon({
-      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28]
-    });
-    const marker = L.marker([coords.lat, coords.lng], { icon });
+    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
 }
+
 function parseLocation(loc) {
   if (!loc) return null;
-  if (typeof loc === 'object' && loc.type === 'Point' && loc.coordinates) {
+  if (typeof loc === 'object' && loc.coordinates) {
     return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
-  }
-  if (typeof loc === 'string' && loc.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(loc);
-      if (parsed.coordinates) return { lat: parsed.coordinates[1], lng: parsed.coordinates[0] };
-    } catch(e) {}
   }
   const match = String(loc).match(/POINT\(([^ ]+) ([^ )]+)\)/);
   if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
-  // WKB hex — use Supabase SQL to convert instead
   return null;
 }
 
@@ -216,7 +163,7 @@ function populateCemeteryDropdown() {
 }
 
 // ══════════════════════════════════════════
-// Basemap
+// BASEMAP
 // ══════════════════════════════════════════
 document.getElementById('basemap-btn').addEventListener('click', () => {
   const p = document.getElementById('basemap-panel');
@@ -237,7 +184,7 @@ document.querySelectorAll('.bm-option').forEach(el => {
 });
 
 // ══════════════════════════════════════════
-// Find My Location
+// LOCATE
 // ══════════════════════════════════════════
 document.getElementById('locate-btn').addEventListener('click', () => {
   if (!navigator.geolocation) return;
@@ -247,7 +194,7 @@ document.getElementById('locate-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
-// Panel helpers
+// PANEL HELPERS
 // ══════════════════════════════════════════
 function openPanel(id) {
   document.querySelectorAll('.panel').forEach(p => { p.classList.remove('open'); });
@@ -287,13 +234,46 @@ document.getElementById('toggle-graves').addEventListener('change', e => {
 });
 
 // ══════════════════════════════════════════
-// Add Grave record workflow
+// ADD GRAVE WORKFLOW
 // ══════════════════════════════════════════
+
+// One-time GPS tip
+function showGpsTip() {
+  if (localStorage.getItem('rr-gps-tip-dismissed')) return;
+  document.getElementById('gps-tip').style.display = 'block';
+}
+window.dismissGpsTip = function() {
+  localStorage.setItem('rr-gps-tip-dismissed', '1');
+  document.getElementById('gps-tip').style.display = 'none';
+};
+
+// Compressed photo blob stored here between steps
+let capturedPhotoBlob = null;
+
+// Image compression via canvas
+async function compressImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+    };
+    img.src = url;
+  });
+}
+
 function showStep(n) {
   ['step1-content','step2-content','step3-content'].forEach((id, i) => {
     document.getElementById(id).style.display = i + 1 === n ? 'block' : 'none';
   });
-  ['s1','s2','s3'].forEach((id, i) => {
+  ['s1','s2','s3','s4'].forEach((id, i) => {
     const el = document.getElementById(id);
     el.className = 'step' + (i + 1 < n ? ' done' : i + 1 === n ? ' active' : '');
   });
@@ -301,26 +281,128 @@ function showStep(n) {
 
 function resetAddPanel() {
   placedPoint = null;
+  capturedPhotoBlob = null;
   if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
   document.getElementById('click-banner').style.display = 'none';
+  document.getElementById('click-banner').textContent = 'Tap map to place grave location';
   document.getElementById('coord-display').textContent = '';
+  document.getElementById('gps-status').textContent = '';
+  document.getElementById('photo-exif-msg').textContent = '';
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-capture-wrap').style.display = 'block';
+  document.getElementById('step3-photo-thumb').style.display = 'none';
+  document.getElementById('g-photo').value = '';
   ['g-name','g-dob','g-dod','g-father','g-mother','g-cemetery','g-county','g-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('g-state').value = 'KY';
-  document.getElementById('g-attachment').value = '';
-  document.getElementById('attachment-name').textContent = '';
   document.getElementById('add-status').className = 'status';
   document.getElementById('save-grave').textContent = 'Save Record';
   document.getElementById('save-grave').disabled = false;
   showStep(1);
 }
 
+// ── Step 1: Photo capture ──
+document.getElementById('g-photo').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const exifMsg = document.getElementById('photo-exif-msg');
+  exifMsg.textContent = '⏳ Processing photo...';
+
+  // Compress image
+  capturedPhotoBlob = await compressImage(file);
+  const origMB = (file.size / 1024 / 1024).toFixed(1);
+  const compKB = (capturedPhotoBlob.size / 1024).toFixed(0);
+
+  // Show preview
+  const previewUrl = URL.createObjectURL(capturedPhotoBlob);
+  document.getElementById('photo-preview').src = previewUrl;
+  document.getElementById('photo-preview-wrap').style.display = 'block';
+  document.getElementById('photo-capture-wrap').style.display = 'none';
+
+  // Show in step 3 thumbnail
+  document.getElementById('step3-thumb-img').src = previewUrl;
+  document.getElementById('step3-photo-thumb').style.display = 'block';
+
+  // Try EXIF GPS extraction
+  try {
+    const exif = await exifr.gps(file);
+    if (exif && exif.latitude && exif.longitude) {
+      placedPoint = L.latLng(exif.latitude, exif.longitude);
+      document.getElementById('coord-display').textContent = `📍 ${exif.latitude.toFixed(5)}, ${exif.longitude.toFixed(5)}`;
+      exifMsg.textContent = `✓ Location captured from photo · ${origMB}MB → ${compKB}KB`;
+      map.setView([exif.latitude, exif.longitude], 16, { animate: true });
+    } else {
+      exifMsg.textContent = `📍 No GPS in photo — set location in next step · ${origMB}MB → ${compKB}KB`;
+    }
+  } catch (err) {
+    exifMsg.textContent = `📍 No GPS in photo — set location in next step · ${origMB}MB → ${compKB}KB`;
+  }
+
+  // Show GPS tip once
+  showGpsTip();
+});
+
+document.getElementById('retake-photo-btn').addEventListener('click', () => {
+  capturedPhotoBlob = null;
+  placedPoint = null;
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-capture-wrap').style.display = 'block';
+  document.getElementById('photo-preview').src = '';
+  document.getElementById('step3-photo-thumb').style.display = 'none';
+  document.getElementById('photo-exif-msg').textContent = '';
+  document.getElementById('coord-display').textContent = '';
+  document.getElementById('g-photo').value = '';
+});
+
 document.getElementById('step1-next').addEventListener('click', async () => {
+  await populateCemeteryDropdown();
+  showStep(2);
+  if (!placedPoint) {
+    document.getElementById('click-banner').style.display = 'block';
+    startMapClick();
+  }
+});
+
+document.getElementById('step1-skip').addEventListener('click', async () => {
+  capturedPhotoBlob = null;
+  await populateCemeteryDropdown();
   showStep(2);
   document.getElementById('click-banner').style.display = 'block';
-  await populateCemeteryDropdown();
   startMapClick();
+});
+
+// ── Step 2: Location ──
+document.getElementById('gps-locate-btn').addEventListener('click', () => {
+  const statusEl = document.getElementById('gps-status');
+  statusEl.textContent = '⏳ Getting GPS location...';
+  if (!navigator.geolocation) {
+    statusEl.textContent = '❌ GPS not available on this device';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    placedPoint = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    document.getElementById('coord-display').textContent = `📍 ${placedPoint.lat.toFixed(5)}, ${placedPoint.lng.toFixed(5)}`;
+    statusEl.textContent = `✓ GPS location captured (±${Math.round(pos.coords.accuracy)}m accuracy)`;
+    map.setView([placedPoint.lat, placedPoint.lng], 17, { animate: true });
+    if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
+    document.getElementById('click-banner').style.display = 'none';
+  }, err => {
+    statusEl.textContent = `❌ Location denied — tap map to place manually`;
+    document.getElementById('click-banner').style.display = 'block';
+    startMapClick();
+  }, { enableHighAccuracy: true, timeout: 10000 });
+});
+
+document.getElementById('step2-next').addEventListener('click', () => {
+  if (!placedPoint) {
+    document.getElementById('gps-status').textContent = '❌ Location required — use GPS or tap the map';
+    return;
+  }
+  if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
+  document.getElementById('click-banner').style.display = 'none';
+  showStep(3);
 });
 
 document.getElementById('step2-back').addEventListener('click', () => {
@@ -330,10 +412,11 @@ document.getElementById('step2-back').addEventListener('click', () => {
 });
 
 document.getElementById('step3-back').addEventListener('click', () => {
-  placedPoint = null;
-  document.getElementById('click-banner').style.display = 'block';
   showStep(2);
-  startMapClick();
+  if (!placedPoint) {
+    document.getElementById('click-banner').style.display = 'block';
+    startMapClick();
+  }
 });
 
 function startMapClick() {
@@ -342,13 +425,13 @@ function startMapClick() {
     placedPoint = e.latlng;
     document.getElementById('coord-display').textContent = `📍 ${placedPoint.lat.toFixed(5)}, ${placedPoint.lng.toFixed(5)}`;
     document.getElementById('click-banner').style.display = 'none';
+    document.getElementById('gps-status').textContent = '📍 Location set from map tap';
     map.off('click', mapClickHandler); mapClickHandler = null;
-    showStep(3);
   };
   map.on('click', mapClickHandler);
 }
 
-// Cemetery dropdown with auto fill
+// Cemetery dropdown auto-fill
 document.getElementById('cemetery-select').addEventListener('change', (e) => {
   const name = e.target.value;
   if (!name) return;
@@ -359,21 +442,13 @@ document.getElementById('cemetery-select').addEventListener('change', (e) => {
     placedPoint = L.latLng(coords.lat, coords.lng);
     document.getElementById('coord-display').textContent = `📍 ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
     document.getElementById('click-banner').style.display = 'none';
+    document.getElementById('gps-status').textContent = `📍 Location set from ${name}`;
     if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
     map.setView([coords.lat, coords.lng], 16, { animate: true, duration: 1.2 });
-    // Pre-fill cemetery fields
     document.getElementById('g-cemetery').value = name;
-    const county = grave.county || '';
-    const state = grave.state || 'KY';
-    document.getElementById('g-county').value = county;
-    document.getElementById('g-state').value = state;
+    document.getElementById('g-county').value = grave.county || '';
+    document.getElementById('g-state').value = grave.state || 'KY';
   }
-});
-
-// Attachment name display
-document.getElementById('g-attachment').addEventListener('change', e => {
-  const f = e.target.files[0];
-  document.getElementById('attachment-name').textContent = f ? `📄 ${f.name}` : '';
 });
 
 // Save grave
@@ -394,9 +469,7 @@ document.getElementById('save-grave').addEventListener('click', async () => {
       father: document.getElementById('g-father').value.trim() || null,
       mother: document.getElementById('g-mother').value.trim() || null,
     };
-    console.log('Saving person:', personData);
     const { data: person, error: pErr } = await sb.from('persons').insert(personData).select().single();
-    console.log('Person result:', person, pErr);
     if (pErr) throw pErr;
 
     // 2. Create grave record
@@ -413,23 +486,26 @@ document.getElementById('save-grave').addEventListener('click', async () => {
       description: document.getElementById('g-notes').value.trim() || null,
       location: `POINT(${placedPoint.lng} ${placedPoint.lat})`
     };
-    console.log('Saving grave:', graveData);
     const { data: grave, error: gErr } = await sb.from('graves').insert(graveData).select().single();
-    console.log('Grave result:', grave, gErr);
     if (gErr) throw gErr;
 
-    // 3. Upload attachment if selected
-    const file = document.getElementById('g-attachment').files[0];
-    if (file) {
-      const path = `photos/${grave.id}/${Date.now()}_${file.name}`;
-      const { error: upErr } = await sb.storage.from('graves-media').upload(path, file);
-      if (!upErr) {
-        await sb.from('attachments').insert({
-          grave_id: grave.id, person_id: person.id,
-          file_name: file.name, file_path: path,
-          file_type: file.type.startsWith('image/') ? 'photo' : 'document',
-          file_size: file.size, mime_type: file.type
+    // 3. Upload compressed photo if captured
+    if (capturedPhotoBlob) {
+      try {
+        const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
+        const { error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
+          contentType: 'image/jpeg'
         });
+        if (!upErr) {
+          await sb.from('attachments').insert({
+            grave_id: grave.id, person_id: person.id,
+            file_name: 'headstone.jpg', file_path: path,
+            file_type: 'photo', file_size: capturedPhotoBlob.size,
+            mime_type: 'image/jpeg'
+          });
+        }
+      } catch (upErr) {
+        console.warn('Photo upload failed:', upErr);
       }
     }
 
@@ -439,21 +515,20 @@ document.getElementById('save-grave').addEventListener('click', async () => {
     setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
 
   } catch (err) {
-    console.error('Save failed:', err);
+    console.error(err);
     showStatus('add-status', `Save failed: ${err.message}`, 'error');
     btn.disabled = false; btn.textContent = 'Save Record';
   }
 });
 
 // ══════════════════════════════════════════
-// Feature Panel
+// FEATURE PANEL
 // ══════════════════════════════════════════
 async function openFeaturePanel(grave) {
   closeAllPanels();
   editingGrave = grave;
   document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
 
-  // POSSIBLY ADD SPOUSE FIELD IN THE FUTURE!!! COME BACK TO THIS. 
   const fields = [
     ['Date of Birth', grave.dob ? new Date(grave.dob).toLocaleDateString() : null],
     ['Date of Death', grave.dod ? new Date(grave.dod).toLocaleDateString() : null],
@@ -487,80 +562,20 @@ async function openFeaturePanel(grave) {
     }
   }
 
-  // Show/hide action buttons based on auth status (signed in or not)
-  const isAuth = !!currentUser;
-  document.getElementById('fp-edit').style.display = isAuth ? 'block' : 'none';
-  document.getElementById('fp-move').style.display = isAuth ? 'block' : 'none';
-  document.getElementById('fp-delete').style.display = isAuth ? 'block' : 'none';
+  document.getElementById('feature-panel').style.display = 'block';
 
-  // Zoom to grave and position panel near marker
+  // Zoom to grave
   const coords = parseLocation(grave.location);
-  if (coords) {
-    map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
-    setTimeout(() => {
-      // First pan the map
-      map.panBy([-140, 0], { animate: true, duration: 0.5 });
-      // Then calculate position after pan settles
-      setTimeout(() => {
-        const point = map.latLngToContainerPoint([coords.lat, coords.lng]);
-        const mapEl = document.getElementById('map');
-        const mapWidth = mapEl.offsetWidth;
-        const mapHeight = mapEl.offsetHeight;
-        const panelWidth = 260;
-        const panelHeight = 300;
-        const headerHeight = 48;
-        const toolbarHeight = 60;
-        let left = point.x - panelWidth - 40;
-        if (left < 10) left = point.x + 40;
-        if (left + panelWidth > mapWidth - 20) left = point.x - panelWidth - 20;
-        let top = point.y - panelHeight / 2 + headerHeight;
-        if (top < headerHeight + 10) top = headerHeight + 10;
-        if (top + panelHeight > mapHeight + headerHeight - toolbarHeight - 10) {
-          top = mapHeight + headerHeight - toolbarHeight - panelHeight - 10;
-        }
-        const panel = document.getElementById('feature-panel');
-        panel.style.left = `${left}px`;
-        panel.style.top = `${top}px`;
-        panel.style.bottom = 'auto';
-        panel.style.right = 'auto';
-        panel.style.display = 'block';
-      }, 600);
-    }, 1100);
-  } else {
-    document.getElementById('feature-panel').style.display = 'block';
-  }
+  if (coords) map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
 
   // Action buttons
-  document.getElementById('fp-trace').onclick = async () => {
-    document.getElementById('feature-panel').style.display = 'none';
-    currentFilterName = grave.person_name;
-    currentFilterId = grave.person_id;
-    ancestorGens = 2;
-    descendantGens = 2;
-    await traceFromPerson(grave.person_name);
-    document.getElementById('web-legend').style.display = 'block';
-    document.getElementById('filter-name-display').textContent = grave.person_name;
-    document.getElementById('filter-active').style.display = 'block';
-    document.getElementById('trace-options').style.display = 'block';
-    buildGenerationPills();
-    openPanel('filter-panel');
-  };
-  document.getElementById('fp-edit').onclick = () => {
-    if (!currentUser) { showAuthModal(); return; }
-    openEditPanel(grave);
-  };
-  document.getElementById('fp-move').onclick = () => {
-    if (!currentUser) { showAuthModal(); return; }
-    startMoveMode(grave);
-  };
-  document.getElementById('fp-delete').onclick = () => {
-    if (!currentUser) { showAuthModal(); return; }
-    deleteGrave(grave);
-  };
+  document.getElementById('fp-edit').onclick = () => openEditPanel(grave);
+  document.getElementById('fp-move').onclick = () => startMoveMode(grave);
+  document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
 }
 
 // ══════════════════════════════════════════
-// Edit Panel
+// EDIT PANEL
 // ══════════════════════════════════════════
 function openEditPanel(grave) {
   document.getElementById('feature-panel').style.display = 'none';
@@ -688,7 +703,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
-// Move/Delete record
+// MOVE & DELETE
 // ══════════════════════════════════════════
 function startMoveMode(grave) {
   document.getElementById('feature-panel').style.display = 'none';
@@ -710,15 +725,12 @@ function startMoveMode(grave) {
 async function deleteGrave(grave) {
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
   await sb.from('graves').delete().eq('id', grave.id);
-  if (grave.person_id) {
-    await sb.from('persons').delete().eq('id', grave.person_id);
-  }
   document.getElementById('feature-panel').style.display = 'none';
   await loadGraves();
 }
 
 // ══════════════════════════════════════════
-// Filter by Person
+// FILTER BY PERSON
 // ══════════════════════════════════════════
 async function applyFilter(name, personId) {
   currentFilterName = name;
@@ -821,7 +833,7 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
-// Lineage trace/family web
+// LINEAGE TRACE
 // ══════════════════════════════════════════
 const ancestorColors = [
   [120,0,0,230],[170,40,40,200],[210,100,100,170],[235,170,170,140]
@@ -951,12 +963,7 @@ function renderGravesById(names) {
   currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const icon = L.icon({
-      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28]
-    });
-    const marker = L.marker([coords.lat, coords.lng], { icon });
+    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
@@ -972,29 +979,20 @@ function addLabel(name, latlng, color, isSelected) {
   const bg = isSelected ? '#1a1a2e' : 'white';
   const icon = L.divIcon({
     className: '',
-    html: `<div style="background:white;color:${c};padding:3px 8px;border-radius:3px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid ${isSelected ? '#1a1a2e' : `rgba(${color[0]},${color[1]},${color[2]},0.6)`};box-shadow:0 2px 6px rgba(0,0,0,0.3);font-weight:bold;">${display}</div>`,
+    html: `<div style="background:${bg};color:${c};padding:2px 6px;border-radius:2px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid rgba(${color[0]},${color[1]},${color[2]},0.4);box-shadow:0 1px 4px rgba(0,0,0,0.2);">${display}</div>`,
     iconAnchor: [-4, 6]
   });
   L.marker(latlng, { icon, interactive: false, zIndexOffset: -100 }).addTo(labelsLayer);
 }
 
+// ══════════════════════════════════════════
+// SHOW ALL FAMILY WEB
+// ══════════════════════════════════════════
 async function buildFullWeb() {
-  const btn = document.getElementById('btn-web');
-
-  // If web is active, clear it
-  if (btn.classList.contains('active')) {
-    lineageLayer.clearLayers();
-    labelsLayer.clearLayers();
-    labeledNames.clear();
-    btn.textContent = '⬡ Family Web';
-    btn.classList.remove('active');
-    renderGraves();
-    return;
-  }
-
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
   labeledNames.clear();
+  const btn = document.getElementById('btn-web');
   btn.textContent = '⬡ Building...';
   btn.disabled = true;
 
@@ -1012,6 +1010,7 @@ async function buildFullWeb() {
     if (!childGrave) return;
     const childCoords = parseLocation(childGrave.location);
     if (!childCoords) return;
+
     [p.father, p.mother].forEach((parentName, i) => {
       const pn = (parentName || '').trim().toLowerCase();
       if (!pn || !gravesByName[pn]) return;
@@ -1025,20 +1024,18 @@ async function buildFullWeb() {
     });
   });
 
+  btn.textContent = count > 0 ? `⬡ Hide Web (${count})` : '⬡ Family Web';
   btn.disabled = false;
+  btn.classList.toggle('active');
 
   if (count > 0) {
-    btn.textContent = `⬡ Hide Web (${count})`;
-    btn.classList.add('active');
     const allCoords = currentGraves.map(g => parseLocation(g.location)).filter(Boolean).map(c => [c.lat, c.lng]);
     if (allCoords.length > 1) map.fitBounds(L.latLngBounds(allCoords), { padding: [40,40] });
-  } else {
-    btn.textContent = '⬡ Family Web';
   }
 }
 
 // ══════════════════════════════════════════
-// Utilities
+// UTILITIES
 // ══════════════════════════════════════════
 function showStatus(id, msg, type) {
   const el = document.getElementById(id);
