@@ -311,6 +311,7 @@ function resetAddPanel() {
 document.getElementById('g-photo').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  console.log('Photo selected:', file.name, file.size);
 
   const exifMsg = document.getElementById('photo-exif-msg');
   exifMsg.textContent = '⏳ Processing photo...';
