@@ -97,28 +97,60 @@
       <div class="step" id="s4"></div>
     </div>
 
-    <!-- Step 1: Photo capture -->
+    <!-- Step 1: Photo + Audio capture -->
     <div id="step1-content">
-      <p style="font-size:13px;color:var(--dark-brown);margin-bottom:12px;">Photograph the headstone — location will be captured automatically if GPS is enabled on your camera.</p>
+      <p style="font-size:13px;color:var(--dark-brown);margin-bottom:12px;">Capture media at the grave site before adding details.</p>
+
+      <!-- Photo section -->
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold;">📷 Photo</div>
 
       <!-- Photo preview (shown after capture) -->
-      <div id="photo-preview-wrap" style="display:none;margin-bottom:12px;">
-        <img id="photo-preview" style="width:100%;border-radius:6px;border:1px solid var(--sepia);max-height:200px;object-fit:cover;"/>
-        <button id="retake-photo-btn" class="rr-btn secondary" style="margin-top:6px;">↺ Retake Photo</button>
+      <div id="photo-preview-wrap" style="display:none;margin-bottom:8px;">
+        <img id="photo-preview" style="width:100%;border-radius:6px;border:1px solid var(--sepia);max-height:160px;object-fit:cover;"/>
+        <button id="retake-photo-btn" class="rr-btn secondary" style="margin-top:4px;">↺ Retake Photo</button>
       </div>
 
       <!-- Capture button (shown before capture) -->
       <div id="photo-capture-wrap">
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;background:#f5f5f5;border:2px dashed var(--sepia);border-radius:6px;cursor:pointer;font-size:13px;color:var(--brown);min-height:80px;">
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#f5f5f5;border:2px dashed var(--sepia);border-radius:6px;cursor:pointer;font-size:13px;color:var(--brown);min-height:60px;">
           📷 Photograph Headstone
           <input type="file" id="g-photo" style="display:none;" accept="image/*" capture="environment"/>
         </label>
       </div>
 
-      <div id="photo-exif-msg" style="font-size:11px;color:var(--brown);margin-top:8px;min-height:18px;"></div>
+      <div id="photo-exif-msg" style="font-size:11px;color:var(--brown);margin-top:4px;margin-bottom:12px;min-height:16px;"></div>
+
+      <!-- Audio section -->
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold;">🎙 Audio Note</div>
+
+      <div id="audio-record-wrap">
+        <button id="audio-record-btn" class="rr-btn secondary" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          🎙 Record Audio Note
+        </button>
+      </div>
+
+      <!-- Recording in progress -->
+      <div id="audio-recording-wrap" style="display:none;background:#f5e8e8;border:1px solid var(--sepia);border-radius:6px;padding:10px;margin-top:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div id="audio-record-dot" style="width:10px;height:10px;border-radius:50%;background:var(--red);animation:blink 1s infinite;"></div>
+            <span style="font-size:12px;color:var(--dark-brown);">Recording</span>
+          </div>
+          <span id="audio-timer" style="font-size:13px;color:var(--red);font-family:monospace;">0:00</span>
+        </div>
+        <button id="audio-stop-btn" class="rr-btn danger" style="margin-top:8px;">⏹ Stop Recording</button>
+      </div>
+
+      <!-- Audio playback (shown after recording) -->
+      <div id="audio-preview-wrap" style="display:none;margin-top:6px;">
+        <audio id="audio-preview" controls style="width:100%;margin-bottom:6px;"></audio>
+        <button id="audio-rerecord-btn" class="rr-btn secondary">↺ Re-record</button>
+      </div>
+
+      <div id="audio-msg" style="font-size:11px;color:var(--brown);margin-top:4px;min-height:16px;"></div>
 
       <button class="rr-btn" id="step1-next" style="margin-top:12px;">Next: Set Location →</button>
-      <button class="rr-btn secondary" id="step1-skip" style="margin-top:6px;">Skip Photo →</button>
+      <button class="rr-btn secondary" id="step1-skip" style="margin-top:6px;">Skip Media →</button>
     </div>
 
     <!-- Step 2: Place location -->
@@ -240,18 +272,19 @@
 <div id="feature-panel">
   <div class="fp-header">
     <span class="fp-title" id="fp-title">Record</span>
-    <button id="fp-redock" title="Redock panel" style="background:none;border:none;color:var(--cream);font-size:14px;cursor:pointer;min-width:36px;min-height:44px;display:flex;align-items:center;justify-content:center;opacity:0.7;">⊞</button>
     <button class="fp-close" id="fp-close">✕</button>
   </div>
   <img id="fp-photo" class="fp-photo" style="display:none;"/>
   <div class="fp-body" id="fp-body"></div>
-    <div class="fp-actions" style="grid-template-columns:1fr 1fr 1fr 1fr;">
-    <button class="fp-btn" id="fp-trace" style="background:var(--red);color:white;">⬡ Trace</button>
+  <div id="fp-audio" class="fp-audio" style="display:none;">
+    <div class="fp-audio-label">🎙 Audio Note</div>
+    <audio id="fp-audio-player" controls style="width:100%;"></audio>
+  </div>
+  <div class="fp-actions">
     <button class="fp-btn" id="fp-edit" style="background:var(--dark-brown);color:var(--cream);">✎ Edit</button>
     <button class="fp-btn" id="fp-move" style="background:var(--mid);color:var(--cream);">⊕ Move</button>
-    <button class="fp-btn" id="fp-delete" style="background:#555;color:white;">✕ Delete</button>
+    <button class="fp-btn" id="fp-delete" style="background:var(--red);color:white;">✕ Delete</button>
   </div>
-  <div id="fp-resize-handle"></div>
 </div>
 
 <!-- ══ EDIT PANEL ══ -->

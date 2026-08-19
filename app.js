@@ -17,7 +17,6 @@ let currentFilterId = null;
 let currentFilterName = null;
 let ancestorGens = 2;
 let descendantGens = 2;
-let capturedPhotoBlob = null;
 const labeledNames = new Set();
 
 window.addEventListener('load', () => {
@@ -114,7 +113,7 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 // LOAD GRAVES
 // ══════════════════════════════════════════
 async function loadGraves() {
-  const { data, error } = await sb.rpc('get_graves_geojson');
+  const { data, error } = await sb.from('graves').select('*');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
   renderGraves();
@@ -253,6 +252,13 @@ window.dismissGpsTip = function() {
   document.getElementById('gps-tip').style.display = 'none';
 };
 
+// Compressed photo blob stored here between steps
+let capturedPhotoBlob = null;
+let capturedAudioBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+
 // Image compression via canvas
 async function compressImage(file, maxWidth = 1200, quality = 0.8) {
   return new Promise((resolve) => {
@@ -285,15 +291,24 @@ function showStep(n) {
 function resetAddPanel() {
   placedPoint = null;
   capturedPhotoBlob = null;
+  capturedAudioBlob = null;
+  audioChunks = [];
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if (recordingTimer) { clearInterval(recordingTimer); recordingTimer = null; }
   if (mapClickHandler) { map.off('click', mapClickHandler); mapClickHandler = null; }
   document.getElementById('click-banner').style.display = 'none';
   document.getElementById('click-banner').textContent = 'Tap map to place grave location';
   document.getElementById('coord-display').textContent = '';
   document.getElementById('gps-status').textContent = '';
   document.getElementById('photo-exif-msg').textContent = '';
+  document.getElementById('audio-msg').textContent = '';
   document.getElementById('photo-preview-wrap').style.display = 'none';
   document.getElementById('photo-capture-wrap').style.display = 'block';
   document.getElementById('step3-photo-thumb').style.display = 'none';
+  document.getElementById('audio-record-wrap').style.display = 'block';
+  document.getElementById('audio-recording-wrap').style.display = 'none';
+  document.getElementById('audio-preview-wrap').style.display = 'none';
+  document.getElementById('audio-timer').textContent = '0:00';
   document.getElementById('g-photo').value = '';
   ['g-name','g-dob','g-dod','g-father','g-mother','g-cemetery','g-county','g-notes'].forEach(id => {
     document.getElementById(id).value = '';
@@ -309,7 +324,6 @@ function resetAddPanel() {
 document.getElementById('g-photo').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  console.log('Photo selected:', file.name, file.size);
 
   const exifMsg = document.getElementById('photo-exif-msg');
   exifMsg.textContent = '⏳ Processing photo...';
@@ -360,7 +374,73 @@ document.getElementById('retake-photo-btn').addEventListener('click', () => {
   document.getElementById('g-photo').value = '';
 });
 
-document.getElementById('step1-next').addEventListener('click', async () => {
+// ── Step 1: Audio recording ──
+const MAX_RECORDING_SECONDS = 120; // 2 minute limit
+
+document.getElementById('audio-record-btn').addEventListener('click', async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      capturedAudioBlob = new Blob(audioChunks, { type: mimeType });
+      const url = URL.createObjectURL(capturedAudioBlob);
+      document.getElementById('audio-preview').src = url;
+      document.getElementById('audio-preview-wrap').style.display = 'block';
+      document.getElementById('audio-recording-wrap').style.display = 'none';
+      const sizeKB = (capturedAudioBlob.size / 1024).toFixed(0);
+      document.getElementById('audio-msg').textContent = `✓ Audio captured (${sizeKB}KB)`;
+      clearInterval(recordingTimer);
+    };
+
+    mediaRecorder.start();
+
+    // Show recording UI
+    document.getElementById('audio-record-wrap').style.display = 'none';
+    document.getElementById('audio-recording-wrap').style.display = 'block';
+
+    // Timer
+    let seconds = 0;
+    recordingTimer = setInterval(() => {
+      seconds++;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      document.getElementById('audio-timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+      if (seconds >= MAX_RECORDING_SECONDS) {
+        mediaRecorder.stop();
+        clearInterval(recordingTimer);
+        document.getElementById('audio-msg').textContent = '⏱ Maximum recording length reached (2 min)';
+      }
+    }, 1000);
+
+  } catch (err) {
+    document.getElementById('audio-msg').textContent = '❌ Microphone access denied — check browser permissions';
+  }
+});
+
+document.getElementById('audio-stop-btn').addEventListener('click', () => {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+    clearInterval(recordingTimer);
+  }
+});
+
+document.getElementById('audio-rerecord-btn').addEventListener('click', () => {
+  capturedAudioBlob = null;
+  audioChunks = [];
+  document.getElementById('audio-preview-wrap').style.display = 'none';
+  document.getElementById('audio-record-wrap').style.display = 'block';
+  document.getElementById('audio-preview').src = '';
+  document.getElementById('audio-msg').textContent = '';
+  document.getElementById('audio-timer').textContent = '0:00';
+});
   await populateCemeteryDropdown();
   showStep(2);
   if (!placedPoint) {
@@ -494,32 +574,45 @@ document.getElementById('save-grave').addEventListener('click', async () => {
     if (gErr) throw gErr;
 
     // 3. Upload compressed photo if captured
-    console.log('capturedPhotoBlob:', capturedPhotoBlob);
     if (capturedPhotoBlob) {
       try {
         const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
-        console.log('Uploading to path:', path);
-        const { data: upData, error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
+        const { error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
           contentType: 'image/jpeg'
         });
-        console.log('Upload result:', upData, upErr);
         if (!upErr) {
-          const { data: attData, error: attErr } = await sb.from('attachments').insert({
+          await sb.from('attachments').insert({
             grave_id: grave.id, person_id: person.id,
             file_name: 'headstone.jpg', file_path: path,
             file_type: 'photo', file_size: capturedPhotoBlob.size,
             mime_type: 'image/jpeg'
           });
-          console.log('Attachment insert:', attData, attErr);
         }
       } catch (upErr) {
         console.warn('Photo upload failed:', upErr);
       }
-    } else {
-      console.log('No photo to upload');
     }
 
-    showStatus('add-status', `✓ Record saved for ${name}`, 'success');
+    // 4. Upload audio note if recorded
+    if (capturedAudioBlob) {
+      try {
+        const ext = capturedAudioBlob.type.includes('webm') ? 'webm' : 'mp4';
+        const audioPath = `audio/${grave.id}/${Date.now()}_note.${ext}`;
+        const { error: audErr } = await sb.storage.from('graves-media').upload(audioPath, capturedAudioBlob, {
+          contentType: capturedAudioBlob.type
+        });
+        if (!audErr) {
+          await sb.from('attachments').insert({
+            grave_id: grave.id, person_id: person.id,
+            file_name: `note.${ext}`, file_path: audioPath,
+            file_type: 'audio', file_size: capturedAudioBlob.size,
+            mime_type: capturedAudioBlob.type
+          });
+        }
+      } catch (audErr) {
+        console.warn('Audio upload failed:', audErr);
+      }
+    }
     btn.textContent = 'Saved!';
     await loadGraves();
     setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
@@ -559,23 +652,32 @@ async function openFeaturePanel(grave) {
       </div>`)
     .join('') || '<p style="color:var(--brown);font-size:12px;">No details recorded.</p>';
 
-  // Load photo
+  // Load photo and audio
   const photoEl = document.getElementById('fp-photo');
   photoEl.style.display = 'none';
+  document.getElementById('fp-audio').style.display = 'none';
+
   const { data: atts } = await sb.from('attachments').select('*').eq('grave_id', grave.id);
   if (atts && atts.length > 0) {
+    // Photo
     const photo = atts.find(a => a.file_type === 'photo');
     if (photo) {
-      const { data: signedData, error: signErr } = await sb.storage
-        .from('graves-media')
-        .createSignedUrl(photo.file_path, 3600);
-      if (!signErr && signedData?.signedUrl) {
+      const { data: signedData } = await sb.storage.from('graves-media').createSignedUrl(photo.file_path, 3600);
+      if (signedData?.signedUrl) {
         photoEl.src = signedData.signedUrl;
         photoEl.style.display = 'block';
       }
     }
+    // Audio
+    const audio = atts.find(a => a.file_type === 'audio');
+    if (audio) {
+      const { data: audioSigned } = await sb.storage.from('graves-media').createSignedUrl(audio.file_path, 3600);
+      if (audioSigned?.signedUrl) {
+        document.getElementById('fp-audio-player').src = audioSigned.signedUrl;
+        document.getElementById('fp-audio').style.display = 'block';
+      }
+    }
   }
-  
 
   document.getElementById('feature-panel').style.display = 'block';
 
@@ -739,35 +841,9 @@ function startMoveMode(grave) {
 
 async function deleteGrave(grave) {
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
-  
-  try {
-    // 1. Get attachments to delete from storage
-    const { data: atts } = await sb.from('attachments').select('file_path').eq('grave_id', grave.id);
-    
-    // 2. Delete files from storage
-    if (atts && atts.length > 0) {
-      const paths = atts.map(a => a.file_path);
-      await sb.storage.from('graves-media').remove(paths);
-    }
-
-    // 3. Delete attachment records
-    await sb.from('attachments').delete().eq('grave_id', grave.id);
-
-    // 4. Delete grave record
-    await sb.from('graves').delete().eq('id', grave.id);
-
-    // 5. Delete persons record
-    if (grave.person_id) {
-      await sb.from('persons').delete().eq('id', grave.person_id);
-    }
-
-    document.getElementById('feature-panel').style.display = 'none';
-    await loadGraves();
-
-  } catch (err) {
-    console.error('Delete failed:', err);
-    alert('Delete failed — please try again.');
-  }
+  await sb.from('graves').delete().eq('id', grave.id);
+  document.getElementById('feature-panel').style.display = 'none';
+  await loadGraves();
 }
 
 // ══════════════════════════════════════════
@@ -1100,98 +1176,6 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
-// ── Draggable feature panel ──
-(function makePanelDraggable() {
-  const panel = document.getElementById('feature-panel');
-  const resizeHandle = document.getElementById('fp-resize-handle');
-  const redockBtn = document.getElementById('fp-redock');
-  let isDragging = false, isResizing = false;
-  let dragStartX, dragStartY, panelStartX, panelStartY;
-  let resizeStartX, resizeStartY, startW, startH;
-  let defaultLeft, defaultTop;
-
-  // Drag
-  panel.addEventListener('mousedown', (e) => {
-    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
-    isDragging = true;
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    panelStartX = parseInt(panel.style.left) || 0;
-    panelStartY = parseInt(panel.style.top) || 0;
-    panel.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (isDragging) {
-      panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
-      panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
-    }
-    if (isResizing) {
-      const newW = Math.max(200, startW + e.clientX - resizeStartX);
-      const newH = Math.max(150, startH + e.clientY - resizeStartY);
-      panel.style.width = `${newW}px`;
-      panel.style.maxHeight = `${newH}px`;
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    isDragging = false;
-    isResizing = false;
-    panel.style.cursor = 'grab';
-  });
-
-  // Resize handle
-  resizeHandle.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    resizeStartX = e.clientX;
-    resizeStartY = e.clientY;
-    startW = panel.offsetWidth;
-    startH = panel.offsetHeight;
-    e.preventDefault();
-    e.stopPropagation();
-  });
-
-  // Redock button
-  redockBtn.addEventListener('click', () => {
-    panel.style.left = `${defaultLeft}px`;
-    panel.style.top = `${defaultTop}px`;
-    panel.style.width = '260px';
-    panel.style.maxHeight = '320px';
-  });
-
-  // Store default position after panel is shown
-  const observer = new MutationObserver(() => {
-    if (panel.style.display === 'block' && !defaultLeft) {
-      defaultLeft = parseInt(panel.style.left) || 0;
-      defaultTop = parseInt(panel.style.top) || 0;
-    }
-  });
-  observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
-
-  // Touch drag
-  panel.addEventListener('touchstart', (e) => {
-    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
-    const touch = e.touches[0];
-    isDragging = true;
-    dragStartX = touch.clientX;
-    dragStartY = touch.clientY;
-    panelStartX = parseInt(panel.style.left) || 0;
-    panelStartY = parseInt(panel.style.top) || 0;
-    e.preventDefault();
-  }, { passive: false });
-
-  panel.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    panel.style.left = `${panelStartX + touch.clientX - dragStartX}px`;
-    panel.style.top = `${panelStartY + touch.clientY - dragStartY}px`;
-    e.preventDefault();
-  }, { passive: false });
-
-  panel.addEventListener('touchend', () => { isDragging = false; });
-})();
-
 checkAuth();
 
 }); // end window.addEventListener('load')
