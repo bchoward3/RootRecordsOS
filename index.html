@@ -240,15 +240,18 @@
 <div id="feature-panel">
   <div class="fp-header">
     <span class="fp-title" id="fp-title">Record</span>
+    <button id="fp-redock" title="Redock panel" style="background:none;border:none;color:var(--cream);font-size:14px;cursor:pointer;min-width:36px;min-height:44px;display:flex;align-items:center;justify-content:center;opacity:0.7;">⊞</button>
     <button class="fp-close" id="fp-close">✕</button>
   </div>
   <img id="fp-photo" class="fp-photo" style="display:none;"/>
   <div class="fp-body" id="fp-body"></div>
-  <div class="fp-actions">
+    <div class="fp-actions" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+    <button class="fp-btn" id="fp-trace" style="background:var(--red);color:white;">⬡ Trace</button>
     <button class="fp-btn" id="fp-edit" style="background:var(--dark-brown);color:var(--cream);">✎ Edit</button>
     <button class="fp-btn" id="fp-move" style="background:var(--mid);color:var(--cream);">⊕ Move</button>
-    <button class="fp-btn" id="fp-delete" style="background:var(--red);color:white;">✕ Delete</button>
+    <button class="fp-btn" id="fp-delete" style="background:#555;color:white;">✕ Delete</button>
   </div>
+  <div id="fp-resize-handle"></div>
 </div>
 
 <!-- ══ EDIT PANEL ══ -->

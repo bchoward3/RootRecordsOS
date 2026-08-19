@@ -119,6 +119,20 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .step.done { background: #5a7a5a; }
 .step.active { background: var(--ink); }
 
+/* ── Feature panel resize handle ── */
+#fp-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--sepia) 50%);
+  border-radius: 0 0 8px 0;
+  opacity: 0.5;
+}
+#fp-resize-handle:hover { opacity: 1; }
+
 /* ── Sepia feature panel ── */
 /* ── Sepia feature panel ── */
 /* ── Sepia feature panel ── */
@@ -133,6 +147,8 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   overflow-y: auto;
   display: none;
   border: 1px solid var(--sepia);
+  min-width: 200px;
+  min-height: 150px;
 }
 .fp-header {
   background: var(--dark-brown); color: var(--cream);

@@ -1077,12 +1077,16 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
 // ── Draggable feature panel ──
 (function makePanelDraggable() {
   const panel = document.getElementById('feature-panel');
-  let isDragging = false, dragStartX, dragStartY, panelStartX, panelStartY;
+  const resizeHandle = document.getElementById('fp-resize-handle');
+  const redockBtn = document.getElementById('fp-redock');
+  let isDragging = false, isResizing = false;
+  let dragStartX, dragStartY, panelStartX, panelStartY;
+  let resizeStartX, resizeStartY, startW, startH;
+  let defaultLeft, defaultTop;
 
-  panel.style.cursor = 'grab';
-
+  // Drag
   panel.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
+    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
     isDragging = true;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
@@ -1093,19 +1097,55 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
   });
 
   document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
-    panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
+    if (isDragging) {
+      panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
+      panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
+    }
+    if (isResizing) {
+      const newW = Math.max(200, startW + e.clientX - resizeStartX);
+      const newH = Math.max(150, startH + e.clientY - resizeStartY);
+      panel.style.width = `${newW}px`;
+      panel.style.maxHeight = `${newH}px`;
+    }
   });
 
   document.addEventListener('mouseup', () => {
     isDragging = false;
+    isResizing = false;
     panel.style.cursor = 'grab';
   });
 
-  // Touch support for iPhone
+  // Resize handle
+  resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    startW = panel.offsetWidth;
+    startH = panel.offsetHeight;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  // Redock button
+  redockBtn.addEventListener('click', () => {
+    panel.style.left = `${defaultLeft}px`;
+    panel.style.top = `${defaultTop}px`;
+    panel.style.width = '260px';
+    panel.style.maxHeight = '320px';
+  });
+
+  // Store default position after panel is shown
+  const observer = new MutationObserver(() => {
+    if (panel.style.display === 'block' && !defaultLeft) {
+      defaultLeft = parseInt(panel.style.left) || 0;
+      defaultTop = parseInt(panel.style.top) || 0;
+    }
+  });
+  observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
+
+  // Touch drag
   panel.addEventListener('touchstart', (e) => {
-    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
+    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' || e.target.tagName === 'IMG') return;
     const touch = e.touches[0];
     isDragging = true;
     dragStartX = touch.clientX;
