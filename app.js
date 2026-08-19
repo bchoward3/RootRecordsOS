@@ -359,7 +359,7 @@ let audioChunks = [];
 let recordingTimer = null;
 let labelsVisible = false;
 let labelType = 'name';
-let mapLabelsLayer;
+var mapLabelsLayer;
 
 // Image compression via canvas
 async function compressImage(file, maxWidth = 1200, quality = 0.8) {
