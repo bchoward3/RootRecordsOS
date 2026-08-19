@@ -143,42 +143,11 @@ function renderGraves(filter) {
 
 function parseLocation(loc) {
   if (!loc) return null;
-  // GeoJSON object
-  if (typeof loc === 'object' && loc.type === 'Point' && loc.coordinates) {
+  if (typeof loc === 'object' && loc.coordinates) {
     return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
   }
-  // GeoJSON string
-  if (typeof loc === 'string' && loc.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(loc);
-      if (parsed.coordinates) return { lat: parsed.coordinates[1], lng: parsed.coordinates[0] };
-    } catch(e) {}
-  }
-  // WKT string
   const match = String(loc).match(/POINT\(([^ ]+) ([^ )]+)\)/);
   if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
-  // WKB hex — decode manually
-  if (typeof loc === 'string' && loc.length > 40) {
-    try {
-      // WKB hex: skip first 10 bytes (header), read lng then lat as little-endian doubles
-      const hex = loc;
-      const lngHex = hex.slice(10, 26);
-      const latHex = hex.slice(26, 42);
-      const buf = new ArrayBuffer(8);
-      const view = new DataView(buf);
-      for (let i = 0; i < 8; i++) {
-        view.setUint8(i, parseInt(lngHex.slice(i*2, i*2+2), 16));
-      }
-      const lng = view.getFloat64(0, true);
-      for (let i = 0; i < 8; i++) {
-        view.setUint8(i, parseInt(latHex.slice(i*2, i*2+2), 16));
-      }
-      const lat = view.getFloat64(0, true);
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng };
-      }
-    } catch(e) {}
-  }
   return null;
 }
 
@@ -1209,6 +1178,96 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
+// ── Draggable + resizable feature panel ──
+(function makePanelDraggable() {
+  const panel = document.getElementById('feature-panel');
+  const resizeHandle = document.getElementById('fp-resize-handle');
+  const redockBtn = document.getElementById('fp-redock');
+  let isDragging = false, isResizing = false;
+  let dragStartX, dragStartY, panelStartX, panelStartY;
+  let resizeStartX, resizeStartY, startW, startH;
+  let defaultLeft = null, defaultTop = null;
+
+  panel.style.cursor = 'grab';
+
+  // Drag — mouse
+  panel.addEventListener('mousedown', (e) => {
+    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' ||
+        e.target.tagName === 'IMG' || e.target.tagName === 'AUDIO') return;
+    isDragging = true;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    panelStartX = parseInt(panel.style.left) || 0;
+    panelStartY = parseInt(panel.style.top) || 0;
+    panel.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
+      panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
+    }
+    if (isResizing) {
+      panel.style.width = `${Math.max(200, startW + e.clientX - resizeStartX)}px`;
+      panel.style.maxHeight = `${Math.max(150, startH + e.clientY - resizeStartY)}px`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false; isResizing = false;
+    panel.style.cursor = 'grab';
+  });
+
+  // Resize handle — mouse
+  resizeHandle.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    resizeStartX = e.clientX; resizeStartY = e.clientY;
+    startW = panel.offsetWidth; startH = panel.offsetHeight;
+    e.preventDefault(); e.stopPropagation();
+  });
+
+  // Redock
+  redockBtn.addEventListener('click', () => {
+    if (defaultLeft !== null) {
+      panel.style.left = `${defaultLeft}px`;
+      panel.style.top = `${defaultTop}px`;
+    }
+    panel.style.width = '260px';
+    panel.style.maxHeight = '320px';
+  });
+
+  // Store default position when panel first shown
+  const observer = new MutationObserver(() => {
+    if (panel.style.display === 'block' && defaultLeft === null) {
+      defaultLeft = parseInt(panel.style.left) || 0;
+      defaultTop = parseInt(panel.style.top) || 0;
+    }
+  });
+  observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
+
+  // Drag — touch
+  panel.addEventListener('touchstart', (e) => {
+    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' ||
+        e.target.tagName === 'IMG' || e.target.tagName === 'AUDIO') return;
+    const t = e.touches[0];
+    isDragging = true;
+    dragStartX = t.clientX; dragStartY = t.clientY;
+    panelStartX = parseInt(panel.style.left) || 0;
+    panelStartY = parseInt(panel.style.top) || 0;
+    e.preventDefault();
+  }, { passive: false });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const t = e.touches[0];
+    panel.style.left = `${panelStartX + t.clientX - dragStartX}px`;
+    panel.style.top = `${panelStartY + t.clientY - dragStartY}px`;
+    e.preventDefault();
+  }, { passive: false });
+
+  panel.addEventListener('touchend', () => { isDragging = false; });
+})();
+
 checkAuth();
 
 }); // end window.addEventListener('load')
