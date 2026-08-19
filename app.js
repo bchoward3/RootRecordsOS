@@ -143,11 +143,42 @@ function renderGraves(filter) {
 
 function parseLocation(loc) {
   if (!loc) return null;
-  if (typeof loc === 'object' && loc.coordinates) {
+  // GeoJSON object
+  if (typeof loc === 'object' && loc.type === 'Point' && loc.coordinates) {
     return { lat: loc.coordinates[1], lng: loc.coordinates[0] };
   }
+  // GeoJSON string
+  if (typeof loc === 'string' && loc.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(loc);
+      if (parsed.coordinates) return { lat: parsed.coordinates[1], lng: parsed.coordinates[0] };
+    } catch(e) {}
+  }
+  // WKT string
   const match = String(loc).match(/POINT\(([^ ]+) ([^ )]+)\)/);
   if (match) return { lat: parseFloat(match[2]), lng: parseFloat(match[1]) };
+  // WKB hex — decode manually
+  if (typeof loc === 'string' && loc.length > 40) {
+    try {
+      // WKB hex: skip first 10 bytes (header), read lng then lat as little-endian doubles
+      const hex = loc;
+      const lngHex = hex.slice(10, 26);
+      const latHex = hex.slice(26, 42);
+      const buf = new ArrayBuffer(8);
+      const view = new DataView(buf);
+      for (let i = 0; i < 8; i++) {
+        view.setUint8(i, parseInt(lngHex.slice(i*2, i*2+2), 16));
+      }
+      const lng = view.getFloat64(0, true);
+      for (let i = 0; i < 8; i++) {
+        view.setUint8(i, parseInt(latHex.slice(i*2, i*2+2), 16));
+      }
+      const lat = view.getFloat64(0, true);
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    } catch(e) {}
+  }
   return null;
 }
 
