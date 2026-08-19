@@ -39,9 +39,9 @@ const basemaps = {
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: '© Esri', maxZoom: 19
   }),
-  toner: L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.png', {
-    attribution: '© Stamen © OpenStreetMap', maxZoom: 19
-  })
+  toner: L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png', {
+    attribution: '© Stadia Maps © Stamen Design © OpenStreetMap', maxZoom: 20
+  }),
 };
 
 // Apply sepia CSS filter to map tiles
