@@ -64,7 +64,6 @@ const graveIcon = L.divIcon({
 gravesLayer = L.layerGroup().addTo(map);
 lineageLayer = L.layerGroup().addTo(map);
 labelsLayer = L.layerGroup().addTo(map);
-mapLabelsLayer = L.layerGroup().addTo(map);
 
 // ══════════════════════════════════════════
 // AUTH
@@ -119,7 +118,6 @@ async function loadGraves() {
   currentGraves = data || [];
   renderGraves();
   populateCemeteryDropdown();
-  if (labelsVisible) renderLabels();
 }
 
 function renderGraves(filter) {
@@ -200,6 +198,24 @@ document.getElementById('locate-btn').addEventListener('click', () => {
   }, err => alert('Location unavailable: ' + err.message));
 });
 
+document.getElementById('extent-btn').addEventListener('click', () => {
+  if (currentGraves.length === 0) {
+    map.setView([37.8, -85.3], 7, { animate: true });
+    return;
+  }
+  const coords = currentGraves
+    .map(g => parseLocation(g.location))
+    .filter(Boolean)
+    .map(c => [c.lat, c.lng]);
+  if (coords.length === 1) {
+    map.setView(coords[0], 14, { animate: true });
+  } else if (coords.length > 1) {
+    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
+  } else {
+    map.setView([37.8, -85.3], 7, { animate: true });
+  }
+});
+
 // ══════════════════════════════════════════
 // PANEL HELPERS
 // ══════════════════════════════════════════
@@ -234,103 +250,6 @@ document.getElementById('fp-close').addEventListener('click', () => { document.g
 document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
 document.getElementById('edit-cancel').addEventListener('click', () => closePanel('edit-panel'));
 
-// ── Extent button ──
-document.getElementById('extent-btn').addEventListener('click', () => {
-  if (currentGraves.length === 0) {
-    map.setView([37.8, -85.3], 7, { animate: true });
-    return;
-  }
-  const coords = currentGraves
-    .map(g => parseLocation(g.location))
-    .filter(Boolean)
-    .map(c => [c.lat, c.lng]);
-  if (coords.length === 1) {
-    map.setView(coords[0], 14, { animate: true });
-  } else if (coords.length > 1) {
-    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
-  } else {
-    map.setView([37.8, -85.3], 7, { animate: true });
-  }
-});
-
-// ── Labels system ──
-// mapLabelsLayer initialized after map is created
-
-function getLabelText(grave) {
-  const name = grave.person_name || '';
-  const cemetery = grave.cemetery_name || '';
-  if (labelType === 'name') return name;
-  if (labelType === 'cemetery') return cemetery || name;
-  if (labelType === 'both') {
-    if (name && cemetery) return `${name}<br/>${cemetery}`;
-    return name || cemetery;
-  }
-  return name;
-}
-
-function getFontSize() {
-  const zoom = map.getZoom();
-  if (zoom >= 16) return '13px';
-  if (zoom >= 14) return '11px';
-  if (zoom >= 12) return '10px';
-  return '9px';
-}
-
-function renderLabels() {
-  mapLabelsLayer.clearLayers();
-  if (!labelsVisible) return;
-  const zoom = map.getZoom();
-  if (zoom < 10) return;
-  const fontSize = getFontSize();
-  currentGraves.forEach(g => {
-    const coords = parseLocation(g.location);
-    if (!coords) return;
-    const text = getLabelText(g);
-    if (!text) return;
-    L.tooltip({
-      permanent: true,
-      direction: 'top',
-      offset: [0, -16],
-      className: 'grave-label',
-    })
-    .setContent(`<span style="font-size:${fontSize};font-weight:bold;">${text}</span>`)
-    .setLatLng([coords.lat, coords.lng])
-    .addTo(mapLabelsLayer);
-  });
-}
-
-// Toggle labels panel — if already visible, clicking again turns labels off
-document.getElementById('labels-btn').addEventListener('click', () => {
-  const panel = document.getElementById('labels-panel');
-  const isOpen = panel.style.display === 'block';
-  if (isOpen) {
-    panel.style.display = 'none';
-    return;
-  }
-  // If labels are on, second click turns them off
-  if (labelsVisible && panel.style.display === 'none') {
-    labelsVisible = false;
-    mapLabelsLayer.clearLayers();
-    document.getElementById('labels-btn').classList.remove('active');
-    return;
-  }
-  panel.style.display = 'block';
-  document.getElementById('basemap-panel').style.display = 'none';
-});
-
-// Apply labels
-document.getElementById('labels-apply').addEventListener('click', () => {
-  const selected = document.querySelector('input[name="label-type"]:checked');
-  labelType = selected ? selected.value : 'name';
-  labelsVisible = true;
-  document.getElementById('labels-btn').classList.add('active');
-  document.getElementById('labels-panel').style.display = 'none';
-  renderLabels();
-});
-
-// Redraw on zoom
-map.on('zoomend', () => { if (labelsVisible) renderLabels(); });
-
 // Layer toggle
 document.getElementById('toggle-graves').addEventListener('change', e => {
   if (e.target.checked) gravesLayer.addTo(map);
@@ -357,9 +276,6 @@ let capturedAudioBlob = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
-let labelsVisible = false;
-let labelType = 'name';
-var mapLabelsLayer;
 
 // Image compression via canvas
 async function compressImage(file, maxWidth = 1200, quality = 0.8) {
