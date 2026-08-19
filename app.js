@@ -130,7 +130,12 @@ function renderGraves(filter) {
     if (!g.location) return;
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    const icon = L.icon({
+      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28]
+    });
+    const marker = L.marker([coords.lat, coords.lng], { icon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
@@ -963,7 +968,12 @@ function renderGravesById(names) {
   currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const marker = L.marker([coords.lat, coords.lng], { icon: graveIcon });
+    const icon = L.icon({
+      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28]
+    });
+    const marker = L.marker([coords.lat, coords.lng], { icon });
     marker.on('click', () => openFeaturePanel(g));
     marker.addTo(gravesLayer);
   });
