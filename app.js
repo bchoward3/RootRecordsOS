@@ -198,6 +198,24 @@ document.getElementById('locate-btn').addEventListener('click', () => {
   }, err => alert('Location unavailable: ' + err.message));
 });
 
+document.getElementById('extent-btn').addEventListener('click', () => {
+  if (currentGraves.length === 0) {
+    map.setView([37.8, -85.3], 7, { animate: true });
+    return;
+  }
+  const coords = currentGraves
+    .map(g => parseLocation(g.location))
+    .filter(Boolean)
+    .map(c => [c.lat, c.lng]);
+  if (coords.length === 1) {
+    map.setView(coords[0], 14, { animate: true });
+  } else if (coords.length > 1) {
+    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
+  } else {
+    map.setView([37.8, -85.3], 7, { animate: true });
+  }
+});
+
 // ══════════════════════════════════════════
 // PANEL HELPERS
 // ══════════════════════════════════════════

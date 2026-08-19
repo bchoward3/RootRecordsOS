@@ -209,6 +209,15 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
+#extent-btn {
+  position: fixed; right: 12px; bottom: calc(188px + var(--safe-bot));
+  width: 44px; height: 44px; border-radius: 50%;
+  background: white; border: 1px solid var(--sepia);
+  font-size: 18px; cursor: pointer; z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
 /* ── Basemap gallery ── */
 #basemap-btn {
   position: fixed; right: 12px; bottom: calc(134px + var(--safe-bot));
