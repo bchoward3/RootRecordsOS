@@ -441,6 +441,8 @@ document.getElementById('audio-rerecord-btn').addEventListener('click', () => {
   document.getElementById('audio-msg').textContent = '';
   document.getElementById('audio-timer').textContent = '0:00';
 });
+
+document.getElementById('step1-next').addEventListener('click', async () => {
   await populateCemeteryDropdown();
   showStep(2);
   if (!placedPoint) {
