@@ -113,7 +113,7 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 // LOAD GRAVES
 // ══════════════════════════════════════════
 async function loadGraves() {
-  const { data, error } = await sb.from('graves').select('*');
+  const { data, error } = await sb.rpc('get_graves_geojson');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
   renderGraves();
