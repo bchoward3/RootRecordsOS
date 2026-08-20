@@ -22,6 +22,7 @@
   var routeLayer = null;   // solid — real roads
   var fallbackLayer = null; // dashed — not a road
   var endMarker = null;
+  var lastBounds = null;   // extent of the current route, for re-fitting
 
   /* ---------- geodesy ---------- */
 
@@ -54,8 +55,9 @@
   }
 
   function formatDistance(m) {
-    if (m < 1000) return Math.round(m) + ' m';
-    return (m / 1000).toFixed(1) + ' km';
+    var ft = m * 3.28084;
+    if (ft < 1000) return Math.round(ft / 10) * 10 + ' ft';
+    return (ft / 5280).toFixed(1) + ' mi';
   }
 
   function formatFeet(m) {
@@ -157,6 +159,13 @@
       if (l) map.removeLayer(l);
     });
     routeLayer = fallbackLayer = endMarker = null;
+    lastBounds = null;
+  }
+
+  // Re-fit the map to the current route — used when the directions panel
+  // is minimized so the whole route becomes visible.
+  function fitRoute() {
+    if (map && lastBounds) map.fitBounds(lastBounds, { padding: [50, 50] });
   }
 
   function drawRoute(coords) {
@@ -223,7 +232,8 @@
       if (!navigator.onLine) {
         var b = bearingDeg(from, dest);
         drawFallbackLeg(from, dest, b, direct);
-        map.fitBounds(L.latLngBounds([[from.lat, from.lng], [dest.lat, dest.lng]]), { padding: [50, 50] });
+        lastBounds = L.latLngBounds([[from.lat, from.lng], [dest.lat, dest.lng]]);
+        map.fitBounds(lastBounds, { padding: [50, 50] });
         done({
           mode: 'offroad',
           distance: direct,
@@ -253,7 +263,8 @@
 
         var bounds = L.latLngBounds(r.coords.map(function (c) { return [c.lat, c.lng]; }));
         bounds.extend([dest.lat, dest.lng]);
-        map.fitBounds(bounds, { padding: [50, 50] });
+        lastBounds = bounds;
+        map.fitBounds(lastBounds, { padding: [50, 50] });
 
         done({
           mode: offroad ? 'road+offroad' : 'road',
@@ -276,15 +287,16 @@
           // Straight line from where you stand.
           var b3 = bearingDeg(from, dest);
           drawFallbackLeg(from, dest, b3, direct);
-          map.fitBounds(L.latLngBounds([[from.lat, from.lng], [dest.lat, dest.lng]]), { padding: [50, 50] });
+          lastBounds = L.latLngBounds([[from.lat, from.lng], [dest.lat, dest.lng]]);
+          map.fitBounds(lastBounds, { padding: [50, 50] });
           done({
             mode: 'offroad',
             distance: direct,
             duration: null,
             steps: [],
             offroad: { bearing: b3, compass: compassPoint(b3), distance: direct },
-            note: 'No road within ' + Math.round(DEST_SNAP_RADIUS_M / 1000) +
-                  ' km of this site \u2014 bearing is from your current position, not a road.'
+            note: 'No road within ' + Math.round(DEST_SNAP_RADIUS_M * 3.28084 / 5280) +
+                  ' mi of this site \u2014 bearing is from your current position, not a road.'
           });
           return;
         }
@@ -303,6 +315,7 @@
     init: init,
     navigateTo: navigateTo,
     clear: clear,
+    fitRoute: fitRoute,
     formatDistance: formatDistance,
     formatFeet: formatFeet,
     formatDuration: formatDuration,

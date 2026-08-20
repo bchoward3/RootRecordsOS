@@ -234,6 +234,7 @@ document.getElementById('filter-close').addEventListener('click', () => closePan
 document.getElementById('layers-close').addEventListener('click', () => closePanel('layers-panel'));
 document.getElementById('fp-close').addEventListener('click', () => { document.getElementById('feature-panel').style.display = 'none'; });
 document.getElementById('nav-close').addEventListener('click', hideNavPanel);
+document.getElementById('nav-minimize').addEventListener('click', toggleNavMinimize);
 document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
 document.getElementById('edit-cancel').addEventListener('click', () => closePanel('edit-panel'));
 
@@ -688,8 +689,21 @@ document.getElementById('save-grave').addEventListener('click', async () => {
 // ══════════════════════════════════════════
 function hideNavPanel() {
   document.getElementById('nav-panel').classList.remove('open');
+  document.getElementById('nav-panel').classList.remove('minimized');
   document.getElementById('nav-offroad').classList.remove('show');
   if (window.RRRoute) RRRoute.clear();
+}
+
+function toggleNavMinimize() {
+  const panel = document.getElementById('nav-panel');
+  const btn = document.getElementById('nav-minimize');
+  const minimized = panel.classList.toggle('minimized');
+  btn.textContent = minimized ? '⌃' : '⌄';
+  btn.title = minimized ? 'Expand directions' : 'Minimize — show whole route';
+  // Collapsing frees up the screen, so refit to the whole route.
+  if (minimized && window.RRRoute) {
+    setTimeout(() => RRRoute.fitRoute(), 60);
+  }
 }
 
 function showNavStatus(msg) {
@@ -697,6 +711,8 @@ function showNavStatus(msg) {
   document.getElementById('nav-summary').textContent = msg;
   document.getElementById('nav-offroad').classList.remove('show');
   document.getElementById('nav-steps').innerHTML = '';
+  panel.classList.remove('minimized');
+  document.getElementById('nav-minimize').textContent = '⌄';
   panel.classList.add('open');
 }
 

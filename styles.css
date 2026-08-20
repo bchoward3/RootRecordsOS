@@ -366,6 +366,21 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   min-width: 44px; min-height: 44px;
   display: flex; align-items: center; justify-content: center;
 }
+#nav-header-btns { display: flex; align-items: center; flex-shrink: 0; }
+#nav-minimize {
+  background: none; border: none; color: var(--cream);
+  font-size: 18px; cursor: pointer;
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.75;
+}
+#nav-minimize:hover { opacity: 1; }
+
+/* Collapsed — header bar only, so the map is visible */
+#nav-panel.minimized { max-height: none; overflow: visible; }
+#nav-panel.minimized #nav-steps,
+#nav-panel.minimized #nav-offroad,
+#nav-panel.minimized #nav-offroad.show { display: none; }
 #nav-offroad {
   display: none;
   padding: 10px 12px;
