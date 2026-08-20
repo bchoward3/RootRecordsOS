@@ -3,7 +3,7 @@
 // Caches app shell + map tiles for offline use
 // ══════════════════════════════════════════
 
-const CACHE_VERSION = 'rootrecords-v5';
+const CACHE_VERSION = 'rootrecords-v6';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
 // Core app files cached on install
@@ -59,7 +59,8 @@ self.addEventListener('fetch', (event) => {
                  url.hostname.includes('tile.openstreetmap.org') ||
                  url.hostname.includes('tile.opentopomap.org') ||
                  url.hostname.includes('server.arcgisonline.com') ||
-                 url.hostname.includes('basemap.nationalmap.gov');
+                 url.hostname.includes('basemap.nationalmap.gov') ||
+                 url.hostname.includes('api.mapbox.com');
 
   if (isTile) {
     event.respondWith(
