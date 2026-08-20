@@ -41,7 +41,7 @@ const basemaps = {
   }),
   toner: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenTopoMap © OpenStreetMap', maxZoom: 17
-  }),
+  })
 };
 
 // Apply sepia CSS filter to map tiles
@@ -198,24 +198,6 @@ document.getElementById('locate-btn').addEventListener('click', () => {
   }, err => alert('Location unavailable: ' + err.message));
 });
 
-document.getElementById('extent-btn').addEventListener('click', () => {
-  if (currentGraves.length === 0) {
-    map.setView([37.8, -85.3], 7, { animate: true });
-    return;
-  }
-  const coords = currentGraves
-    .map(g => parseLocation(g.location))
-    .filter(Boolean)
-    .map(c => [c.lat, c.lng]);
-  if (coords.length === 1) {
-    map.setView(coords[0], 14, { animate: true });
-  } else if (coords.length > 1) {
-    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
-  } else {
-    map.setView([37.8, -85.3], 7, { animate: true });
-  }
-});
-
 // ══════════════════════════════════════════
 // PANEL HELPERS
 // ══════════════════════════════════════════
@@ -250,6 +232,25 @@ document.getElementById('fp-close').addEventListener('click', () => { document.g
 document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
 document.getElementById('edit-cancel').addEventListener('click', () => closePanel('edit-panel'));
 
+// ── Extent button ──
+document.getElementById('extent-btn').addEventListener('click', () => {
+  if (currentGraves.length === 0) {
+    map.setView([37.8, -85.3], 7, { animate: true });
+    return;
+  }
+  const coords = currentGraves
+    .map(g => parseLocation(g.location))
+    .filter(Boolean)
+    .map(c => [c.lat, c.lng]);
+  if (coords.length === 1) {
+    map.setView(coords[0], 14, { animate: true });
+  } else if (coords.length > 1) {
+    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
+  } else {
+    map.setView([37.8, -85.3], 7, { animate: true });
+  }
+});
+
 // Layer toggle
 document.getElementById('toggle-graves').addEventListener('change', e => {
   if (e.target.checked) gravesLayer.addTo(map);
@@ -276,6 +277,7 @@ let capturedAudioBlob = null;
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
+
 
 // Image compression via canvas
 async function compressImage(file, maxWidth = 1200, quality = 0.8) {
@@ -564,14 +566,46 @@ document.getElementById('save-grave').addEventListener('click', async () => {
   const btn = document.getElementById('save-grave');
   btn.disabled = true; btn.textContent = 'Saving...';
 
+  // Build the record payload
+  const recordPayload = {
+    name,
+    dob: document.getElementById('g-dob').value || null,
+    dod: document.getElementById('g-dod').value || null,
+    father: document.getElementById('g-father').value.trim() || null,
+    mother: document.getElementById('g-mother').value.trim() || null,
+    cemetery_name: document.getElementById('g-cemetery').value.trim() || null,
+    county: document.getElementById('g-county').value.trim() || null,
+    state: document.getElementById('g-state').value.trim() || null,
+    description: document.getElementById('g-notes').value.trim() || null,
+    lat: placedPoint.lat,
+    lng: placedPoint.lng
+  };
+
+  // ── OFFLINE: queue to IndexedDB ──
+  if (!navigator.onLine) {
+    try {
+      await window.RRDb.queueRecord(recordPayload, capturedPhotoBlob, capturedAudioBlob);
+      const count = await window.RRDb.getPendingCount();
+      showStatus('add-status', `📴 Saved offline — ${count} record${count === 1 ? '' : 's'} queued for sync`, 'info');
+      btn.textContent = 'Queued!';
+      updateSyncBadge();
+      setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 2000);
+      return;
+    } catch (err) {
+      showStatus('add-status', `Offline save failed: ${err.message}`, 'error');
+      btn.disabled = false; btn.textContent = 'Save Record';
+      return;
+    }
+  }
+
   try {
     // 1. Create person record
     const personData = {
-      name,
-      dob: document.getElementById('g-dob').value || null,
-      dod: document.getElementById('g-dod').value || null,
-      father: document.getElementById('g-father').value.trim() || null,
-      mother: document.getElementById('g-mother').value.trim() || null,
+      name: recordPayload.name,
+      dob: recordPayload.dob,
+      dod: recordPayload.dod,
+      father: recordPayload.father,
+      mother: recordPayload.mother,
     };
     const { data: person, error: pErr } = await sb.from('persons').insert(personData).select().single();
     if (pErr) throw pErr;
@@ -1186,9 +1220,7 @@ function showStatus(id, msg, type) {
 }
 
 // Offline detection
-window.addEventListener('online', () => { document.getElementById('offline-banner').style.display = 'none'; });
-window.addEventListener('offline', () => { document.getElementById('offline-banner').style.display = 'block'; });
-if (!navigator.onLine) document.getElementById('offline-banner').style.display = 'block';
+// Offline detection handled in sync section below
 
 // Close basemap panel on map click
 map.on('click', () => { document.getElementById('basemap-panel').style.display = 'none'; });
@@ -1286,6 +1318,148 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
   panel.addEventListener('touchend', () => { isDragging = false; });
 })();
 
+// ══════════════════════════════════════════
+// OFFLINE SYNC
+// ══════════════════════════════════════════
+
+async function updateSyncBadge() {
+  try {
+    const count = await window.RRDb.getPendingCount();
+    const badge = document.getElementById('sync-badge');
+    if (count > 0) {
+      badge.textContent = `⏳ ${count} record${count === 1 ? '' : 's'} pending sync`;
+      badge.style.display = 'block';
+      badge.style.cursor = 'pointer';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (e) { /* db not ready */ }
+}
+
+async function syncPendingRecords() {
+  if (!navigator.onLine || !currentUser) return;
+
+  const pending = await window.RRDb.getPendingRecords();
+  if (pending.length === 0) return;
+
+  const badge = document.getElementById('sync-badge');
+  badge.textContent = `⏳ Syncing ${pending.length} record${pending.length === 1 ? '' : 's'}...`;
+  badge.style.display = 'block';
+
+  let synced = 0, failed = 0;
+
+  for (const item of pending) {
+    try {
+      const p = item.payload;
+
+      // 1. Insert person
+      const { data: person, error: pErr } = await sb.from('persons').insert({
+        name: p.name, dob: p.dob, dod: p.dod,
+        father: p.father, mother: p.mother
+      }).select().single();
+      if (pErr) throw pErr;
+
+      // 2. Insert grave
+      const { data: grave, error: gErr } = await sb.from('graves').insert({
+        person_id: person.id,
+        person_name: p.name,
+        dob: p.dob, dod: p.dod,
+        father: p.father, mother: p.mother,
+        cemetery_name: p.cemetery_name,
+        county: p.county, state: p.state,
+        description: p.description,
+        location: `POINT(${p.lng} ${p.lat})`
+      }).select().single();
+      if (gErr) throw gErr;
+
+      // 3. Upload photo if queued
+      if (item.photoId) {
+        const photoBlob = await window.RRDb.getMediaBlob(item.photoId);
+        if (photoBlob) {
+          const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
+          const { error: upErr } = await sb.storage.from('graves-media')
+            .upload(path, photoBlob, { contentType: 'image/jpeg' });
+          if (!upErr) {
+            await sb.from('attachments').insert({
+              grave_id: grave.id, person_id: person.id,
+              file_name: 'headstone.jpg', file_path: path,
+              file_type: 'photo', file_size: photoBlob.size,
+              mime_type: 'image/jpeg'
+            });
+          }
+        }
+      }
+
+      // 4. Upload audio if queued
+      if (item.audioId) {
+        const audioBlob = await window.RRDb.getMediaBlob(item.audioId);
+        if (audioBlob) {
+          const ext = audioBlob.type.includes('webm') ? 'webm' : 'mp4';
+          const path = `audio/${grave.id}/${Date.now()}_note.${ext}`;
+          const { error: audErr } = await sb.storage.from('graves-media')
+            .upload(path, audioBlob, { contentType: audioBlob.type });
+          if (!audErr) {
+            await sb.from('attachments').insert({
+              grave_id: grave.id, person_id: person.id,
+              file_name: `note.${ext}`, file_path: path,
+              file_type: 'audio', file_size: audioBlob.size,
+              mime_type: audioBlob.type
+            });
+          }
+        }
+      }
+
+      // 5. Remove from queue
+      await window.RRDb.markSynced(item.id, item.photoId, item.audioId);
+      synced++;
+
+    } catch (err) {
+      console.warn('Sync failed for record:', err);
+      failed++;
+    }
+  }
+
+  // Refresh map and update badge
+  await loadGraves();
+
+  if (failed === 0) {
+    badge.textContent = `✓ ${synced} record${synced === 1 ? '' : 's'} synced`;
+    setTimeout(() => { badge.style.display = 'none'; }, 3000);
+  } else {
+    badge.textContent = `⚠ ${synced} synced, ${failed} failed`;
+    setTimeout(() => updateSyncBadge(), 4000);
+  }
+}
+
+// Manual sync trigger — tap the badge
+document.getElementById('sync-badge').addEventListener('click', () => {
+  if (navigator.onLine) syncPendingRecords();
+});
+
+// Auto-sync when connection restored
+window.addEventListener('online', () => {
+  document.getElementById('offline-banner').style.display = 'none';
+  setTimeout(() => syncPendingRecords(), 1500);
+});
+
+window.addEventListener('offline', () => {
+  document.getElementById('offline-banner').style.display = 'block';
+});
+
+if (!navigator.onLine) document.getElementById('offline-banner').style.display = 'block';
+
+// ══════════════════════════════════════════
+// SERVICE WORKER REGISTRATION
+// ══════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg => console.log('Service Worker registered:', reg.scope))
+    .catch(err => console.warn('Service Worker registration failed:', err));
+}
+
 checkAuth();
+updateSyncBadge();
+// Attempt sync on load if online
+if (navigator.onLine) setTimeout(() => syncPendingRecords(), 2500);
 
 }); // end window.addEventListener('load')

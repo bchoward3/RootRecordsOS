@@ -11,11 +11,19 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="grave.png"/>
+  <meta name="theme-color" content="#1a1a2e"/>
+
   <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- exifr — EXIF GPS extraction from photos -->
   <script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+
+  <!-- IndexedDB offline queue -->
+  <script src="db.js"></script>
 
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
@@ -55,13 +63,15 @@
 <!-- Map -->
 <div id="map"></div>
 
-<button id="extent-btn" title="Zoom to all records">⤢</button>
-
 <!-- Floating controls -->
+<button id="extent-btn" title="Zoom to all records">⤢</button>
 <button id="locate-btn" title="Find my location">◎</button>
 <button id="basemap-btn" title="Change basemap">🗺</button>
 <div id="basemap-panel">
   <div class="bm-option active" data-bm="voyager">🏺 Voyager (Antique)</div>
+  <div class="bm-option" data-bm="dark">🌑 Dark Matter</div>
+  <div class="bm-option" data-bm="terrain">🏔 Terrain</div>
+  <div class="bm-option" data-bm="topo">📍 USGS Topo</div>
   <div class="bm-option" data-bm="light">☁️ Light Gray</div>
   <div class="bm-option" data-bm="osm">🗾 OpenStreetMap</div>
   <div class="bm-option" data-bm="satellite">🛰 Satellite</div>
@@ -70,12 +80,31 @@
 <div id="click-banner">Tap map to place grave location</div>
 <div id="sync-badge">⏳ Syncing offline records...</div>
 
+<!-- Label options panel -->
+<div id="label-panel" style="display:none;position:fixed;right:12px;z-index:1100;background:white;border:1px solid var(--sepia);border-radius:6px;padding:10px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.2);font-family:'Georgia',serif;min-width:160px;">
+  <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Label Display</div>
+  <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+    <input type="radio" name="label-type" value="name" checked/> Name only
+  </label>
+  <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+    <input type="radio" name="label-type" value="cemetery"/> Cemetery only
+  </label>
+  <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+    <input type="radio" name="label-type" value="both"/> Name + Cemetery
+  </label>
+  <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold;">Min. Zoom to Show</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <input type="range" id="label-zoom-threshold" min="8" max="16" value="12" style="flex:1;"/>
+    <span id="label-zoom-value" style="font-size:11px;color:var(--dark-brown);min-width:20px;">12</span>
+  </div>
+</div>
+
 <!-- Bottom toolbar -->
 <div id="toolbar">
   <button class="tool-btn" id="btn-add">＋ Add Grave</button>
   <button class="tool-btn secondary" id="btn-filter">⌕ Filter by Person</button>
   <button class="tool-btn secondary" id="btn-web">⬡ Family Web</button>
-  <button class="tool-btn secondary" id="btn-layers">≡ Layers</button>
+  <button class="tool-btn secondary" id="btn-labels">🏷 Labels</button>
 </div>
 
 <!-- One-time GPS tip banner -->
