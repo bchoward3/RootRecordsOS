@@ -65,13 +65,14 @@ self.addEventListener('fetch', (event) => {
         cache.match(event.request).then(cached => {
           if (cached) return cached;
           return fetch(event.request).then(response => {
-            // Only cache successful tile responses
-            if (response.status === 200) {
+            // Cache successful responses (status 200) and opaque responses
+            // (status 0 from no-cors requests used during bulk download)
+            if (response.status === 200 || response.type === 'opaque') {
               cache.put(event.request, response.clone());
             }
             return response;
           }).catch(() => {
-            // Offline and tile not cached — return transparent placeholder
+            // Offline and tile not cached — transparent placeholder
             return new Response('', { status: 204 });
           });
         })

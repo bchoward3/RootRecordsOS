@@ -1457,6 +1457,137 @@ if ('serviceWorker' in navigator) {
     .catch(err => console.warn('Service Worker registration failed:', err));
 }
 
+// ══════════════════════════════════════════
+// OFFLINE MAP TILE DOWNLOAD
+// ══════════════════════════════════════════
+
+let downloadCancelled = false;
+
+// Convert lat/lng bounds to tile coordinates at a zoom level
+function latLngToTile(lat, lng, zoom) {
+  const n = Math.pow(2, zoom);
+  const x = Math.floor((lng + 180) / 360 * n);
+  const latRad = lat * Math.PI / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
+  return { x, y };
+}
+
+// Build list of tile URLs for current bounds across zoom range
+function buildTileList(bounds, minZoom, maxZoom) {
+  const tiles = [];
+  const template = basemaps[currentBasemap]._url;
+  const subdomains = basemaps[currentBasemap].options.subdomains || 'abc';
+  const subArray = typeof subdomains === 'string' ? subdomains.split('') : subdomains;
+
+  for (let z = minZoom; z <= maxZoom; z++) {
+    const nw = latLngToTile(bounds.getNorth(), bounds.getWest(), z);
+    const se = latLngToTile(bounds.getSouth(), bounds.getEast(), z);
+    for (let x = nw.x; x <= se.x; x++) {
+      for (let y = nw.y; y <= se.y; y++) {
+        const s = subArray[Math.abs(x + y) % subArray.length];
+        const url = template
+          .replace('{s}', s)
+          .replace('{z}', z)
+          .replace('{x}', x)
+          .replace('{y}', y)
+          .replace('{r}', '');
+        tiles.push(url);
+      }
+    }
+  }
+  return tiles;
+}
+
+document.getElementById('download-tiles-btn').addEventListener('click', async () => {
+  const maxZoom = parseInt(document.getElementById('offline-zoom-level').value);
+  const minZoom = 10;
+  const bounds = map.getBounds();
+  const tiles = buildTileList(bounds, minZoom, maxZoom);
+
+  if (tiles.length > 20000) {
+    document.getElementById('offline-status').textContent =
+      '⚠ Area too large — zoom in further or choose lower detail';
+    return;
+  }
+
+  downloadCancelled = false;
+  document.getElementById('tile-progress-wrap').style.display = 'block';
+  document.getElementById('download-tiles-btn').disabled = true;
+  document.getElementById('offline-status').textContent = '';
+
+  let done = 0, failed = 0;
+  const batchSize = 6; // parallel requests
+
+  for (let i = 0; i < tiles.length; i += batchSize) {
+    if (downloadCancelled) break;
+    const batch = tiles.slice(i, i + batchSize);
+    await Promise.all(batch.map(url =>
+      fetch(url, { mode: 'no-cors' })
+        .then(() => { done++; })
+        .catch(() => { failed++; done++; })
+    ));
+
+    const pct = Math.round((done / tiles.length) * 100);
+    document.getElementById('tile-progress-bar').style.width = `${pct}%`;
+    document.getElementById('tile-progress-text').textContent =
+      `Downloading ${done.toLocaleString()} of ${tiles.length.toLocaleString()} tiles (${pct}%)`;
+
+    // Small delay to avoid hammering tile server
+    await new Promise(r => setTimeout(r, 40));
+  }
+
+  document.getElementById('tile-progress-wrap').style.display = 'none';
+  document.getElementById('download-tiles-btn').disabled = false;
+  document.getElementById('tile-progress-bar').style.width = '0%';
+
+  if (downloadCancelled) {
+    document.getElementById('offline-status').textContent =
+      `Cancelled — ${done.toLocaleString()} tiles saved`;
+  } else {
+    const estMB = ((done * 15) / 1024).toFixed(0);
+    document.getElementById('offline-status').textContent =
+      `✓ Map saved for offline use — ${done.toLocaleString()} tiles (~${estMB}MB)`;
+  }
+  updateCacheSize();
+});
+
+document.getElementById('cancel-download-btn').addEventListener('click', () => {
+  downloadCancelled = true;
+});
+
+// ── Clear offline tile cache ──
+document.getElementById('clear-tiles-btn').addEventListener('click', async () => {
+  if (!confirm('Clear all downloaded offline map tiles? The map will need cell service until you download again.')) return;
+  try {
+    const keys = await caches.keys();
+    const tileCaches = keys.filter(k => k.includes('tiles'));
+    await Promise.all(tileCaches.map(k => caches.delete(k)));
+    document.getElementById('offline-status').textContent = '✓ Offline map cleared';
+    setTimeout(() => updateCacheSize(), 500);
+  } catch (err) {
+    document.getElementById('offline-status').textContent = 'Failed to clear cache';
+  }
+});
+
+// ── Show current cache size ──
+async function updateCacheSize() {
+  try {
+    if (!navigator.storage || !navigator.storage.estimate) return;
+    const est = await navigator.storage.estimate();
+    const usedMB = (est.usage / 1024 / 1024).toFixed(0);
+    const quotaMB = (est.quota / 1024 / 1024).toFixed(0);
+    const el = document.getElementById('offline-status');
+    if (el && !el.textContent) {
+      el.textContent = `Storage used: ${usedMB}MB of ${quotaMB}MB available`;
+    }
+  } catch (e) { /* not supported */ }
+}
+
+// Update cache size when layers panel opens
+document.getElementById('btn-layers').addEventListener('click', () => {
+  setTimeout(() => updateCacheSize(), 200);
+});
+
 checkAuth();
 updateSyncBadge();
 // Attempt sync on load if online

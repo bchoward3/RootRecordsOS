@@ -288,7 +288,7 @@
 <!-- ══ LAYERS PANEL ══ -->
 <div class="panel" id="layers-panel">
   <div class="panel-header">
-    <span class="panel-title">Layers</span>
+    <span class="panel-title">Layers &amp; Offline</span>
     <button class="panel-close" id="layers-close">✕</button>
   </div>
   <div class="panel-body">
@@ -296,6 +296,40 @@
       <input type="checkbox" id="toggle-graves" checked style="width:18px;height:18px;"/>
       <span style="font-size:13px;color:var(--dark-brown);">⚰ Graves</span>
     </label>
+
+    <!-- Offline map section -->
+    <div style="margin-top:16px;">
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Offline Map</div>
+      <p style="font-size:11px;color:var(--brown);line-height:1.5;margin-bottom:10px;">
+        Zoom to your fieldwork area, then download map tiles so the map works without cell service.
+      </p>
+
+      <label class="rr-label">Detail level</label>
+      <select class="rr-input" id="offline-zoom-level">
+        <option value="14">Standard — county to cemetery (~15MB)</option>
+        <option value="15" selected>Detailed — includes street level (~40MB)</option>
+        <option value="16">Maximum — individual graves (~120MB)</option>
+      </select>
+
+      <button class="rr-btn" id="download-tiles-btn" style="background:#2d5a2d;margin-top:10px;">
+        ⬇ Save Map for Offline
+      </button>
+
+      <!-- Progress -->
+      <div id="tile-progress-wrap" style="display:none;margin-top:10px;">
+        <div style="background:#e8e0d0;border-radius:4px;height:8px;overflow:hidden;">
+          <div id="tile-progress-bar" style="background:#2d5a2d;height:100%;width:0%;transition:width 0.3s;"></div>
+        </div>
+        <div id="tile-progress-text" style="font-size:11px;color:var(--brown);margin-top:6px;text-align:center;"></div>
+        <button class="rr-btn secondary" id="cancel-download-btn" style="margin-top:6px;">Cancel</button>
+      </div>
+
+      <div id="offline-status" style="font-size:11px;color:var(--brown);margin-top:8px;min-height:16px;"></div>
+
+      <button class="rr-btn secondary" id="clear-tiles-btn" style="margin-top:8px;">
+        🗑 Clear Offline Map
+      </button>
+    </div>
   </div>
 </div>
 
