@@ -17,6 +17,7 @@ let currentFilterId = null;
 let currentFilterName = null;
 let ancestorGens = 2;
 let descendantGens = 2;
+let webVisible = false;
 const labeledNames = new Set();
 
 window.addEventListener('load', () => {
@@ -1035,6 +1036,7 @@ async function applyFilter(name, personId) {
   document.getElementById('web-legend').style.display = 'none';
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
+  resetWebButton();
   renderGraves(name);
 
   // Zoom to matching graves
@@ -1131,6 +1133,7 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
   document.getElementById('filter-search').value = '';
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
+  resetWebButton();
   renderGraves();
   map.setView([37.8, -85.3], 7, { animate: true, duration: 1 });
 });
@@ -1162,6 +1165,7 @@ async function traceFromPerson(startName) {
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
   labeledNames.clear();
+  resetWebButton();
 
   const gravesByName = {};
   currentGraves.forEach(g => {
@@ -1296,11 +1300,30 @@ function addLabel(name, latlng, color, isSelected) {
 // ══════════════════════════════════════════
 // SHOW ALL FAMILY WEB
 // ══════════════════════════════════════════
+// Put the Family Web button back to its unbuilt state. Called whenever
+// something else takes over lineageLayer (filter, trace, clear).
+function resetWebButton() {
+  webVisible = false;
+  const btn = document.getElementById('btn-web');
+  btn.textContent = '⬡ Family Web';
+  btn.classList.remove('active');
+}
+
 async function buildFullWeb() {
+  const btn = document.getElementById('btn-web');
+
+  // Second tap — tear the web down instead of rebuilding it.
+  if (webVisible) {
+    lineageLayer.clearLayers();
+    labelsLayer.clearLayers();
+    labeledNames.clear();
+    resetWebButton();
+    return;
+  }
+
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
   labeledNames.clear();
-  const btn = document.getElementById('btn-web');
   btn.textContent = '⬡ Building...';
   btn.disabled = true;
 
@@ -1334,7 +1357,8 @@ async function buildFullWeb() {
 
   btn.textContent = count > 0 ? `⬡ Hide Web (${count})` : '⬡ Family Web';
   btn.disabled = false;
-  btn.classList.toggle('active');
+  webVisible = count > 0;
+  btn.classList.toggle('active', webVisible);
 
   if (count > 0) {
     const allCoords = currentGraves.map(g => parseLocation(g.location)).filter(Boolean).map(c => [c.lat, c.lng]);
