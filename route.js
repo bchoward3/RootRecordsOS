@@ -94,20 +94,38 @@
 
   /* ---------- ORS ---------- */
 
-  function fetchRoute(from, to) {
-    var url = ORS_URL +
-      '?api_key=' + encodeURIComponent(ORS_KEY) +
-      '&start=' + from.lng + ',' + from.lat +
-      '&end=' + to.lng + ',' + to.lat;
+  // ORS default snap radius is 350m — far too tight for cemeteries off
+  // unmapped holler roads. This is how far we let the destination reach
+  // for a road before giving up entirely.
+  var DEST_SNAP_RADIUS_M = 20000;
+  var START_SNAP_RADIUS_M = 1000;
 
-    return fetch(url).then(function (res) {
+  function fetchRoute(from, to) {
+    // POST (not GET) because the radiuses parameter isn't available on the
+    // GET form. Preflight sends "authorization,content-type" — already
+    // sorted/unique/lowercase, which the ORS CORS layer requires.
+    return fetch(ORS_URL + '/geojson', {
+      method: 'POST',
+      headers: {
+        'Authorization': ORS_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        coordinates: [[from.lng, from.lat], [to.lng, to.lat]],
+        radiuses: [START_SNAP_RADIUS_M, DEST_SNAP_RADIUS_M],
+        instructions: true
+      })
+    }).then(function (res) {
       if (res.status === 429) throw new Error('QUOTA');
+      if (res.status === 401 || res.status === 403) throw new Error('AUTH');
       if (!res.ok) {
         return res.json().catch(function () { return null; }).then(function (body) {
-          // 2010 = no routable point within search radius. Expected out here.
           var code = body && body.error && body.error.code;
-          if (code === 2010 || res.status === 404) throw new Error('NOROUTE');
-          throw new Error('ORSFAIL');
+          // 2010 = nothing routable within the radius we asked for.
+          // 2009 = no route exists between the two points.
+          if (code === 2010 || code === 2009) throw new Error('NOROUTE');
+          var msg = body && body.error && body.error.message;
+          throw new Error(msg ? 'ORSFAIL:' + msg : 'ORSFAIL');
         });
       }
       return res.json();
@@ -249,8 +267,13 @@
           fail('Routing quota reached for today. Bearing and distance still work offline.');
           return;
         }
-        if (e.message === 'NOROUTE' || e.message === 'ORSFAIL') {
-          // No mapped road reaches this. Straight line from where you stand.
+        if (e.message === 'AUTH') {
+          fail('Routing key was rejected. Check the ORS key in route.js.');
+          return;
+        }
+        if (e.message === 'NOROUTE') {
+          // Genuinely nothing routable within DEST_SNAP_RADIUS_M.
+          // Straight line from where you stand.
           var b3 = bearingDeg(from, dest);
           drawFallbackLeg(from, dest, b3, direct);
           map.fitBounds(L.latLngBounds([[from.lat, from.lng], [dest.lat, dest.lng]]), { padding: [50, 50] });
@@ -260,8 +283,13 @@
             duration: null,
             steps: [],
             offroad: { bearing: b3, compass: compassPoint(b3), distance: direct },
-            note: 'No mapped road reaches this site.'
+            note: 'No road within ' + Math.round(DEST_SNAP_RADIUS_M / 1000) +
+                  ' km of this site \u2014 bearing is from your current position, not a road.'
           });
+          return;
+        }
+        if (e.message && e.message.indexOf('ORSFAIL:') === 0) {
+          fail('Routing service: ' + e.message.slice(8));
           return;
         }
         fail('Could not reach the routing service. Check your connection and try again.');
