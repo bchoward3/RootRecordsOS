@@ -3,7 +3,7 @@
 // Caches app shell + map tiles for offline use
 // ══════════════════════════════════════════
 
-const CACHE_VERSION = 'rootrecords-v1';
+const CACHE_VERSION = 'rootrecords-v2';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
 // Core app files cached on install
@@ -12,6 +12,8 @@ const APP_SHELL = [
   './index.html',
   './styles.css',
   './app.js',
+  './db.js',
+  './route.js',
   './grave.png',
   './manifest.json',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',

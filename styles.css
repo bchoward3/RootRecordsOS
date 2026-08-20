@@ -310,3 +310,84 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   color: #6b4c2a !important;
   font-weight: normal !important;
 }
+
+/* ── Navigate button (spans full row under the other four) ── */
+#fp-navigate {
+  grid-column: 1 / -1;
+  background: #2d5a2d;
+  color: var(--cream);
+  letter-spacing: 0.5px;
+}
+#fp-navigate:disabled { opacity: 0.6; }
+
+/* ── Off-road bearing label ── */
+.rr-offroad-label span {
+  display: inline-block;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: 'Georgia', serif;
+  font-size: 11px;
+  font-weight: bold;
+  color: #7c3a06;
+  background: rgba(245,239,224,0.92);
+  border: 1px solid #b45309;
+  border-radius: 3px;
+  padding: 2px 6px;
+  pointer-events: none;
+}
+
+/* ── Turn-by-turn panel ── */
+#nav-panel {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(70px + var(--safe-bot));
+  z-index: 1003;
+  background: var(--parchment);
+  border: 1px solid var(--sepia);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  font-family: 'Georgia', serif;
+  max-height: 45vh;
+  overflow-y: auto;
+  display: none;
+}
+#nav-panel.open { display: block; }
+#nav-header {
+  position: sticky; top: 0;
+  background: var(--dark-brown); color: var(--cream);
+  padding: 8px 12px;
+  border-radius: 8px 8px 0 0;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; letter-spacing: 0.5px;
+}
+#nav-close {
+  background: none; border: none; color: var(--cream);
+  font-size: 18px; cursor: pointer;
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
+#nav-offroad {
+  display: none;
+  padding: 10px 12px;
+  background: #fdf0dc;
+  border-bottom: 1px solid #b45309;
+  font-size: 12px;
+  color: #7c3a06;
+  line-height: 1.5;
+}
+#nav-offroad.show { display: block; }
+#nav-steps { padding: 4px 0; }
+.nav-step {
+  padding: 8px 12px;
+  border-bottom: 1px solid #ece2cc;
+  font-size: 12px;
+  color: var(--dark-brown);
+  line-height: 1.45;
+}
+.nav-step:last-child { border-bottom: none; }
+.nav-step-dist {
+  font-size: 10px;
+  color: var(--brown);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

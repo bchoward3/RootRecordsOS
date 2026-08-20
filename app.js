@@ -26,6 +26,9 @@ window.addEventListener('load', () => {
 // ══════════════════════════════════════════
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
+// Routing module needs the map instance
+if (window.RRRoute) RRRoute.init(map);
+
 const basemaps = {
   voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
@@ -210,6 +213,7 @@ function closePanel(id) { document.getElementById(id).classList.remove('open'); 
 function closeAllPanels() {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
   document.getElementById('feature-panel').style.display = 'none';
+  hideNavPanel();
 }
 
 // Toolbar buttons
@@ -229,6 +233,7 @@ document.getElementById('add-close').addEventListener('click', () => { closePane
 document.getElementById('filter-close').addEventListener('click', () => closePanel('filter-panel'));
 document.getElementById('layers-close').addEventListener('click', () => closePanel('layers-panel'));
 document.getElementById('fp-close').addEventListener('click', () => { document.getElementById('feature-panel').style.display = 'none'; });
+document.getElementById('nav-close').addEventListener('click', hideNavPanel);
 document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
 document.getElementById('edit-cancel').addEventListener('click', () => closePanel('edit-panel'));
 
@@ -679,6 +684,78 @@ document.getElementById('save-grave').addEventListener('click', async () => {
 });
 
 // ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function hideNavPanel() {
+  document.getElementById('nav-panel').classList.remove('open');
+  document.getElementById('nav-offroad').classList.remove('show');
+  if (window.RRRoute) RRRoute.clear();
+}
+
+function showNavStatus(msg) {
+  const panel = document.getElementById('nav-panel');
+  document.getElementById('nav-summary').textContent = msg;
+  document.getElementById('nav-offroad').classList.remove('show');
+  document.getElementById('nav-steps').innerHTML = '';
+  panel.classList.add('open');
+}
+
+function renderNavResult(result, destName) {
+  const summary = document.getElementById('nav-summary');
+  const offroad = document.getElementById('nav-offroad');
+  const steps = document.getElementById('nav-steps');
+
+  if (result.mode === 'offroad') {
+    summary.textContent = 'Bearing only — ' + (destName || 'grave');
+  } else {
+    summary.textContent = RRRoute.formatDistance(result.distance) +
+      ' · ' + RRRoute.formatDuration(result.duration);
+  }
+
+  if (result.offroad) {
+    const o = result.offroad;
+    offroad.innerHTML =
+      '<strong>Last stretch on foot — no mapped road.</strong><br>' +
+      'Head <strong>' + o.compass + '</strong> (' + Math.round(o.bearing) +
+      '°) for <strong>' + RRRoute.formatFeet(o.distance) + '</strong>.' +
+      (result.note ? '<br><span style="opacity:0.8;">' + result.note + '</span>' : '');
+    offroad.classList.add('show');
+  } else {
+    offroad.classList.remove('show');
+  }
+
+  steps.innerHTML = (result.steps || []).map(s =>
+    '<div class="nav-step">' +
+      '<div>' + s.instruction + '</div>' +
+      '<div class="nav-step-dist">' + RRRoute.formatDistance(s.distance) + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function startNavigation(grave, coords) {
+  const btn = document.getElementById('fp-navigate');
+  if (!coords) {
+    showNavStatus('This record has no location.');
+    return;
+  }
+  btn.disabled = true;
+  RRRoute.navigateTo(
+    { lat: coords.lat, lng: coords.lng, name: grave.person_name },
+    {
+      onStatus: (msg) => showNavStatus(msg),
+      onResult: (result) => {
+        btn.disabled = false;
+        renderNavResult(result, grave.person_name);
+      },
+      onError: (msg) => {
+        btn.disabled = false;
+        showNavStatus(msg);
+      }
+    }
+  );
+}
+
+// ══════════════════════════════════════════
 // FEATURE PANEL
 // ══════════════════════════════════════════
 async function openFeaturePanel(grave) {
@@ -743,6 +820,7 @@ async function openFeaturePanel(grave) {
   document.getElementById('fp-edit').onclick = () => openEditPanel(grave);
   document.getElementById('fp-move').onclick = () => startMoveMode(grave);
   document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
+  document.getElementById('fp-navigate').onclick = () => startNavigation(grave, coords);
 }
 
 // ══════════════════════════════════════════

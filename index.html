@@ -25,6 +25,9 @@
   <!-- IndexedDB offline queue -->
   <script src="db.js"></script>
 
+  <!-- ORS routing module -->
+  <script src="route.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -79,6 +82,16 @@
 </div>
 <div id="click-banner">Tap map to place grave location</div>
 <div id="sync-badge">⏳ Syncing offline records...</div>
+
+<!-- Navigation directions -->
+<div id="nav-panel">
+  <div id="nav-header">
+    <span id="nav-summary">Routing…</span>
+    <button id="nav-close" title="Clear route">✕</button>
+  </div>
+  <div id="nav-offroad"></div>
+  <div id="nav-steps"></div>
+</div>
 
 <!-- Label options panel -->
 <div id="label-panel" style="display:none;position:fixed;right:12px;z-index:1100;background:white;border:1px solid var(--sepia);border-radius:6px;padding:10px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.2);font-family:'Georgia',serif;min-width:160px;">
@@ -351,6 +364,7 @@
     <button class="fp-btn" id="fp-edit" style="background:var(--dark-brown);color:var(--cream);">✎ Edit</button>
     <button class="fp-btn" id="fp-move" style="background:var(--mid);color:var(--cream);">⊕ Move</button>
     <button class="fp-btn" id="fp-delete" style="background:#555;color:white;">✕ Delete</button>
+    <button class="fp-btn" id="fp-navigate">🧭 Navigate to this grave</button>
   </div>
   <div id="fp-resize-handle"></div>
 </div>
