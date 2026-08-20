@@ -989,8 +989,37 @@ function startMoveMode(grave) {
 
 async function deleteGrave(grave) {
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
+
+  // 1. Storage files first — once the attachment rows are gone we lose the paths.
+  const { data: atts } = await sb.from('attachments')
+    .select('id, file_path')
+    .eq('grave_id', grave.id);
+
+  const paths = (atts || []).map(a => a.file_path).filter(Boolean);
+  if (paths.length > 0) {
+    const { error: storageErr } = await sb.storage.from('graves-media').remove(paths);
+    if (storageErr) console.warn('[delete] storage cleanup failed:', storageErr.message);
+  }
+
+  // 2. Attachment rows
+  await sb.from('attachments').delete().eq('grave_id', grave.id);
+
+  // 3. The grave itself
   await sb.from('graves').delete().eq('id', grave.id);
+
+  // 4. The person — but only if no other grave still references them.
+  if (grave.person_id) {
+    const { data: remaining } = await sb.from('graves')
+      .select('id')
+      .eq('person_id', grave.person_id)
+      .limit(1);
+    if (!remaining || remaining.length === 0) {
+      await sb.from('persons').delete().eq('id', grave.person_id);
+    }
+  }
+
   document.getElementById('feature-panel').style.display = 'none';
+  hideNavPanel();
   await loadGraves();
 }
 
@@ -1066,8 +1095,17 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
   list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--brown);">Loading...</div>';
   list.style.display = 'block';
   const { data } = await sb.from('persons').select('id, name, dob, dod').order('name');
+  // Only list people who actually have a grave on the map — an orphaned
+  // person row would otherwise show here and filter to nothing when tapped.
+  const withGraves = new Set(currentGraves.map(g => g.person_id).filter(Boolean));
+  const named = new Set(
+    currentGraves.map(g => (g.person_name || '').trim().toLowerCase()).filter(Boolean)
+  );
+  const rows = (data || []).filter(p =>
+    withGraves.has(p.id) || named.has((p.name || '').trim().toLowerCase())
+  );
   list.innerHTML = '';
-  (data || []).forEach(p => {
+  rows.forEach(p => {
     const div = document.createElement('div');
     div.className = 'browse-item';
     const dob = p.dob ? new Date(p.dob).getFullYear() : '?';
@@ -1081,7 +1119,7 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
     });
     list.appendChild(div);
   });
-  if (!data || data.length === 0) {
+  if (rows.length === 0) {
     list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--brown);">No records yet.</div>';
   }
 });
