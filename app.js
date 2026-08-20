@@ -84,7 +84,19 @@ labelsLayer = L.layerGroup().addTo(map);
 async function checkAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) setUser(session.user);
-  else showAuthModal();
+  else { updateBasemapAccess(); showAuthModal(); }
+}
+
+// Basemaps that cost money per tile — hidden from guests so visitors
+// can't spend the quota. This is a courtesy, not security: the token is
+// still readable in app.js. Restrict it by URL in the Mapbox account.
+const METERED_BASEMAPS = ['mapbox'];
+
+function updateBasemapAccess() {
+  METERED_BASEMAPS.forEach(key => {
+    const opt = document.querySelector(`.bm-option[data-bm="${key}"]`);
+    if (opt) opt.style.display = currentUser ? 'flex' : 'none';
+  });
 }
 
 function setUser(user) {
@@ -93,6 +105,7 @@ function setUser(user) {
   document.getElementById('login-btn').style.display = 'none';
   document.getElementById('user-indicator').style.display = 'flex';
   document.getElementById('user-email-display').textContent = user.email;
+  updateBasemapAccess();
   loadGraves();
 }
 
@@ -119,6 +132,15 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   currentUser = null;
   document.getElementById('login-btn').style.display = 'block';
   document.getElementById('user-indicator').style.display = 'none';
+  // Signing out while on a metered basemap — revert to the free default.
+  if (METERED_BASEMAPS.includes(currentBasemap)) {
+    map.removeLayer(basemaps[currentBasemap]);
+    basemaps.voyager.addTo(map);
+    currentBasemap = 'voyager';
+    document.querySelectorAll('.bm-option').forEach(o =>
+      o.classList.toggle('active', o.dataset.bm === 'voyager'));
+  }
+  updateBasemapAccess();
   showAuthModal();
 });
 
