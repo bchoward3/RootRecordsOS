@@ -476,6 +476,16 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   font-size: 12px; padding: 0 16px;
 }
 
+/* ── Attachment delete (edit panel) ── */
+.att-delete {
+  flex-shrink: 0;
+  background: none; border: 1px solid var(--sepia); border-radius: 3px;
+  color: var(--red); font-family: 'Georgia', serif; font-size: 13px;
+  cursor: pointer; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+.att-delete:hover { background: #f5e8e8; border-color: var(--red); }
+
 /* ── Auth modal dismiss ── */
 .auth-box { position: relative; }
 #auth-close {

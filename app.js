@@ -1182,11 +1182,39 @@ async function loadEditAttachments(graveId) {
   }
   atts.forEach(att => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0e8d8;';
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f0e8d8;';
     const icon = att.file_type === 'photo' ? '🖼' : '📄';
-    row.innerHTML = `<span style="font-size:12px;color:var(--dark-brown);">${icon} ${att.file_name}</span>`;
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:12px;color:var(--dark-brown);word-break:break-word;flex:1;';
+    label.textContent = `${icon} ${att.file_name}`;
+    const del = document.createElement('button');
+    del.className = 'att-delete';
+    del.textContent = '✕';
+    del.title = `Delete ${att.file_name}`;
+    del.addEventListener('click', () => deleteAttachment(att, graveId));
+    row.appendChild(label);
+    row.appendChild(del);
     container.appendChild(row);
   });
+}
+
+async function deleteAttachment(att, graveId) {
+  if (!currentUser) { showAuthModal(); return; }
+  if (!confirm(`Delete "${att.file_name}"? This cannot be undone.`)) return;
+  const statusEl = document.getElementById('edit-attachment-status');
+  statusEl.textContent = `Deleting ${att.file_name}...`;
+
+  // Storage first — the row holds the only reference to the file path.
+  const { error: sErr } = await sb.storage.from('graves-media').remove([att.file_path]);
+  if (sErr) console.warn('[attachment] storage delete failed:', sErr.message);
+
+  const { error: rErr } = await sb.from('attachments').delete().eq('id', att.id);
+  if (rErr) {
+    statusEl.textContent = `Delete failed: ${rErr.message}`;
+    return;
+  }
+  statusEl.textContent = `✓ ${att.file_name} deleted`;
+  loadEditAttachments(graveId);
 }
 
 document.getElementById('edit-attachment-input').addEventListener('change', async e => {
