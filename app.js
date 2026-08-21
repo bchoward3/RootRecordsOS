@@ -18,6 +18,9 @@ let currentFilterName = null;
 let ancestorGens = 2;
 let descendantGens = 2;
 let webVisible = false;
+let labelMode = 'name';        // 'name' | 'cemetery' | 'both'
+let labelsPermanent = false;   // false = hover only (desktop), true = always on
+let labelZoomThreshold = 12;
 const labeledNames = new Set();
 
 window.addEventListener('load', () => {
@@ -180,15 +183,74 @@ function renderGraves(filter) {
     if (!g.location) return;
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const icon = L.icon({
-      iconUrl: 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28]
-    });
-    const marker = L.marker([coords.lat, coords.lng], { icon });
-    marker.on('click', () => openFeaturePanel(g));
+    const marker = createGraveMarker(g, coords);
+    marker._graveRef = g;
     marker.addTo(gravesLayer);
   });
+}
+
+// ── Grave markers & labels ──
+// One factory for both render paths so labels can't work in one and
+// not the other.
+function graveLabelText(g) {
+  const name = (g.person_name || '').trim();
+  const cem = (g.cemetery_name || '').trim();
+  if (labelMode === 'cemetery') return cem || name;
+  if (labelMode === 'both') {
+    if (name && cem) return `${name}<span class="gt-cem">${cem}</span>`;
+    return name || cem;
+  }
+  return name || cem;
+}
+
+function createGraveMarker(g, coords) {
+  const icon = L.icon({
+    iconUrl: 'grave.png',
+    iconSize: [20, 28],
+    iconAnchor: [10, 28],
+    className: 'grave-marker'
+  });
+  const marker = L.marker([coords.lat, coords.lng], { icon });
+  const text = graveLabelText(g);
+  if (text) {
+    marker.bindTooltip(text, {
+      permanent: labelsPermanent,
+      direction: 'right',
+      offset: [8, -12],
+      className: 'grave-tooltip',
+      opacity: 1
+    });
+  }
+  marker.on('click', () => openFeaturePanel(g));
+  return marker;
+}
+
+// Permanent tooltips below the zoom threshold would pile up, so hide
+// them with a class rather than unbinding and rebinding every marker.
+function updateLabelVisibility() {
+  if (!map) return;
+  const hide = labelsPermanent && map.getZoom() < labelZoomThreshold;
+  document.getElementById('map').classList.toggle('labels-hidden', hide);
+}
+
+function refreshGraveLabels() {
+  gravesLayer.eachLayer(layer => {
+    if (!layer.getTooltip) return;
+    const g = layer._graveRef;
+    if (!g) return;
+    layer.unbindTooltip();
+    const text = graveLabelText(g);
+    if (text) {
+      layer.bindTooltip(text, {
+        permanent: labelsPermanent,
+        direction: 'right',
+        offset: [8, -12],
+        className: 'grave-tooltip',
+        opacity: 1
+      });
+    }
+  });
+  updateLabelVisibility();
 }
 
 function parseLocation(loc) {
@@ -1215,6 +1277,37 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
+// LABELS
+// ══════════════════════════════════════════
+document.getElementById('labels-btn').addEventListener('click', () => {
+  const panel = document.getElementById('label-panel');
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  document.getElementById('labels-btn').classList.toggle('active', !open);
+});
+
+document.getElementById('labels-always').addEventListener('change', (e) => {
+  labelsPermanent = e.target.checked;
+  refreshGraveLabels();
+});
+
+document.querySelectorAll('input[name="label-type"]').forEach(radio => {
+  radio.addEventListener('change', (e) => {
+    if (!e.target.checked) return;
+    labelMode = e.target.value;
+    refreshGraveLabels();
+  });
+});
+
+document.getElementById('label-zoom-threshold').addEventListener('input', (e) => {
+  labelZoomThreshold = parseInt(e.target.value, 10);
+  document.getElementById('label-zoom-value').textContent = labelZoomThreshold;
+  updateLabelVisibility();
+});
+
+map.on('zoomend', updateLabelVisibility);
+
+// ══════════════════════════════════════════
 // LINEAGE TRACE
 // ══════════════════════════════════════════
 const ancestorColors = [
@@ -1363,13 +1456,8 @@ function renderGravesById(names) {
   currentGraves.filter(g => nameSet.has((g.person_name || '').toLowerCase())).forEach(g => {
     const coords = parseLocation(g.location);
     if (!coords) return;
-    const icon = L.icon({
-      iconUrl: 'grave.png',
-      iconSize: [20, 28],
-      iconAnchor: [10, 28]
-    });
-    const marker = L.marker([coords.lat, coords.lng], { icon });
-    marker.on('click', () => openFeaturePanel(g));
+    const marker = createGraveMarker(g, coords);
+    marker._graveRef = g;
     marker.addTo(gravesLayer);
   });
 }

@@ -98,9 +98,15 @@
   <div id="nav-steps"></div>
 </div>
 
+<button id="labels-btn" title="Label options">🏷</button>
+
 <!-- Label options panel -->
-<div id="label-panel" style="display:none;position:fixed;right:12px;z-index:1100;background:white;border:1px solid var(--sepia);border-radius:6px;padding:10px 12px;box-shadow:0 2px 12px rgba(0,0,0,0.2);font-family:'Georgia',serif;min-width:160px;">
+<div id="label-panel">
   <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Label Display</div>
+  <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+    <input type="checkbox" id="labels-always"/> Always show labels
+  </label>
+  <div style="font-size:9px;color:var(--brown);margin-bottom:10px;line-height:1.4;">Off: labels appear on hover (desktop only).</div>
   <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
     <input type="radio" name="label-type" value="name" checked/> Name only
   </label>
