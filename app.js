@@ -985,6 +985,8 @@ async function openFeaturePanel(grave) {
   const photoEl = document.getElementById('fp-photo');
   photoEl.style.display = 'none';
   document.getElementById('fp-audio').style.display = 'none';
+  document.getElementById('fp-docs').style.display = 'none';
+  document.getElementById('fp-docs-list').innerHTML = '';
 
   const { data: atts } = await sb.from('attachments').select('*').eq('grave_id', grave.id);
   if (atts && atts.length > 0) {
@@ -1004,6 +1006,22 @@ async function openFeaturePanel(grave) {
       if (audioSigned?.signedUrl) {
         document.getElementById('fp-audio-player').src = audioSigned.signedUrl;
         document.getElementById('fp-audio').style.display = 'block';
+      }
+    }
+    // Documents — anything that isn't a photo or an audio note
+    const docs = atts.filter(a => a.file_type !== 'photo' && a.file_type !== 'audio');
+    if (docs.length > 0) {
+      const links = await Promise.all(docs.map(async d => {
+        const { data: sig } = await sb.storage.from('graves-media').createSignedUrl(d.file_path, 3600);
+        if (!sig?.signedUrl) return '';
+        const icon = (d.mime_type || '').includes('pdf') ? '📄' : '📎';
+        const kb = d.file_size ? `<span class="fp-doc-size">${Math.round(d.file_size / 1024)} KB</span>` : '';
+        return `<a class="fp-doc" href="${sig.signedUrl}" target="_blank" rel="noopener">${icon} ${d.file_name}${kb}</a>`;
+      }));
+      const rendered = links.filter(Boolean).join('');
+      if (rendered) {
+        document.getElementById('fp-docs-list').innerHTML = rendered;
+        document.getElementById('fp-docs').style.display = 'block';
       }
     }
   }

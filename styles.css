@@ -406,6 +406,27 @@ audio { accent-color: var(--dark-brown); width: 100%; }
     drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
+/* ── Feature panel documents ── */
+#fp-docs {
+  padding: 8px 12px;
+  border-top: 1px solid var(--sepia);
+  background: #f9f5ee;
+}
+.fp-doc {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 6px; min-height: 40px;
+  font-size: 11px; color: var(--dark-brown);
+  text-decoration: none;
+  border-bottom: 1px solid #ece2cc;
+  word-break: break-word;
+}
+.fp-doc:last-child { border-bottom: none; }
+.fp-doc:hover { background: #f0e8d8; }
+.fp-doc-size {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 9px; color: var(--brown);
+}
+
 /* ── Auth modal dismiss ── */
 .auth-box { position: relative; }
 #auth-close {
