@@ -882,6 +882,10 @@ async function openFeaturePanel(grave) {
   if (coords) map.setView([coords.lat, coords.lng], 15, { animate: true, duration: 1 });
 
   // Action buttons
+  document.getElementById('fp-trace').onclick = () => {
+    openPanel('filter-panel');
+    runTrace(grave.person_name, grave.person_id);
+  };
   document.getElementById('fp-edit').onclick = () => openEditPanel(grave);
   document.getElementById('fp-move').onclick = () => startMoveMode(grave);
   document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
@@ -1202,14 +1206,30 @@ const descendantColors = [
 function toRgba(c) { return `rgba(${c[0]},${c[1]},${c[2]},${(c[3]||230)/255})`; }
 function toWeight(gen) { return Math.max(1, 3 - gen * 0.5); }
 
-document.getElementById('trace-btn').addEventListener('click', async () => {
-  if (!currentFilterName) return;
+// Shared by the Filter panel's Trace button and the feature panel's Trace.
+// Sets filter state directly rather than calling applyFilter(), which
+// re-opens the feature panel on a single match and would close the
+// filter panel out from under us.
+async function runTrace(name, personId) {
+  if (!name) return;
+  currentFilterName = name;
+  currentFilterId = personId || null;
+  document.getElementById('filter-name-display').textContent = name;
+  document.getElementById('filter-active').style.display = 'block';
+  document.getElementById('trace-options').style.display = 'block';
+  buildGenerationPills();
+
   const btn = document.getElementById('trace-btn');
   btn.disabled = true; btn.textContent = '⬡ Tracing...';
-  await traceFromPerson(currentFilterName);
-  btn.disabled = false;
-  btn.textContent = '⬡ Trace Family Web';
+  const lines = await traceFromPerson(name);
+  btn.disabled = false; btn.textContent = '⬡ Trace Family Web';
   document.getElementById('web-legend').style.display = 'block';
+  return lines;
+}
+
+document.getElementById('trace-btn').addEventListener('click', async () => {
+  if (!currentFilterName) return;
+  await runTrace(currentFilterName, currentFilterId);
 });
 
 async function traceFromPerson(startName) {
