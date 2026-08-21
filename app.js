@@ -259,6 +259,26 @@ function refreshGraveLabels() {
   updateLabelVisibility();
 }
 
+// fitBounds fits the coordinates, but markers are anchored at their base and
+// draw 28px upward, and the floating button stack covers the right edge. On a
+// phone that stack is ~14% of the viewport, so uniform padding pushes edge
+// markers underneath it. Pad asymmetrically instead.
+function fitToCoords(coords, opts) {
+  if (!coords || coords.length === 0) return;
+  if (coords.length === 1) {
+    map.setView(coords[0], 14, Object.assign({ animate: true }, opts || {}));
+    return;
+  }
+  const w = map.getSize().x;
+  const narrow = w < 500;
+  map.fitBounds(L.latLngBounds(coords), Object.assign({
+    // top: clear the icon height + label. right: clear the button stack.
+    paddingTopLeft: [narrow ? 30 : 50, 55],
+    paddingBottomRight: [narrow ? 62 : 70, 45],
+    animate: true
+  }, opts || {}));
+}
+
 function parseLocation(loc) {
   if (!loc) return null;
   if (typeof loc === 'object' && loc.coordinates) {
@@ -366,7 +386,7 @@ document.getElementById('extent-btn').addEventListener('click', () => {
   if (coords.length === 1) {
     map.setView(coords[0], 14, { animate: true });
   } else if (coords.length > 1) {
-    map.fitBounds(L.latLngBounds(coords), { padding: [40, 40], animate: true });
+    fitToCoords(coords);
   } else {
     map.setView([37.8, -85.3], 7, { animate: true });
   }
@@ -1217,8 +1237,7 @@ async function applyFilter(name, personId) {
     if (coords.length === 1) {
       map.setView([coords[0].lat, coords[0].lng], 14, { animate: true, duration: 1 });
     } else if (coords.length > 1) {
-      const bounds = L.latLngBounds(coords.map(c => [c.lat, c.lng]));
-      map.fitBounds(bounds, { padding: [40, 40], animate: true, duration: 1 });
+      fitToCoords(coords.map(c => [c.lat, c.lng]), { duration: 1 });
     }
     // Open feature panel for single match
     if (matching.length === 1) {
@@ -1493,7 +1512,7 @@ async function traceFromPerson(startName) {
     .map(g => parseLocation(g.location)).filter(Boolean)
     .map(c => [c.lat, c.lng]);
   if (allCoords.length > 1) {
-    map.fitBounds(L.latLngBounds(allCoords), { padding: [40, 40], animate: true, duration: 1.2 });
+    fitToCoords(allCoords, { duration: 1.2 });
   } else if (allCoords.length === 1) {
     map.setView(allCoords[0], 14, { animate: true, duration: 1 });
   }
@@ -1598,7 +1617,7 @@ async function buildFullWeb() {
 
   if (count > 0) {
     const allCoords = currentGraves.map(g => parseLocation(g.location)).filter(Boolean).map(c => [c.lat, c.lng]);
-    if (allCoords.length > 1) map.fitBounds(L.latLngBounds(allCoords), { padding: [40,40] });
+    if (allCoords.length > 1) fitToCoords(allCoords);
   }
 }
 
