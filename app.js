@@ -6,7 +6,10 @@ const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // State
-let map, basemaps, gravesLayer, lineageLayer, labelsLayer;
+// Assigned inside the load block below. `basemaps` is NOT here — it's
+// declared as a const inside that block, and a duplicate here would be
+// permanently undefined and shadowed.
+let map, gravesLayer, lineageLayer, labelsLayer;
 let currentUser = null;
 let currentGraves = [];
 let placedPoint = null;
@@ -21,9 +24,12 @@ let webVisible = false;
 let labelMode = 'name';        // 'name' | 'cemetery' | 'both'
 let labelsPermanent = false;   // false = hover only (desktop), true = always on
 let labelZoomThreshold = 12;
-const labeledNames = new Set();
 
 window.addEventListener('load', () => {
+
+// Declared here, above every use, so no function can hit it in the
+// temporal dead zone if it ever gets called during load.
+const labeledNames = new Set();
 
 // ══════════════════════════════════════════
 // MAP INIT
@@ -1462,9 +1468,7 @@ function renderGravesById(names) {
   });
 }
 
-const labeledNames = new Set();
-function addLabel(name, latlng, color, isSelected) {
-  if (!name) return;
+function addLabel(name, latlng, color, isSelected) {  if (!name) return;
   const display = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   if (labeledNames.has(display)) return;
   labeledNames.add(display);
