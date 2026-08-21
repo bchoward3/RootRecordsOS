@@ -81,6 +81,14 @@
   <div class="bm-option" data-bm="toner">🗺 OpenTopo</div>
 </div>
 <div id="click-banner">Tap map to place grave location</div>
+<div id="photo-lightbox" class="hidden">
+  <button id="lb-close" title="Close">✕</button>
+  <button id="lb-prev" title="Previous">‹</button>
+  <img id="lb-image" alt=""/>
+  <button id="lb-next" title="Next">›</button>
+  <div id="lb-caption"></div>
+</div>
+
 <button id="clear-trace-btn">✕ Clear Trace</button>
 
 <div id="sync-badge">⏳ Syncing offline records...</div>
@@ -370,6 +378,7 @@
     <button class="fp-close" id="fp-close">✕</button>
   </div>
   <img id="fp-photo" class="fp-photo" style="display:none;"/>
+  <div id="fp-thumbs" style="display:none;"></div>
   <div class="fp-body" id="fp-body"></div>
   <div id="fp-audio" class="fp-audio" style="display:none;">
     <div class="fp-audio-label">🎙 Audio Note</div>

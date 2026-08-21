@@ -952,6 +952,64 @@ function startNavigation(grave, coords) {
 }
 
 // ══════════════════════════════════════════
+// PHOTO GALLERY
+// ══════════════════════════════════════════
+let currentPhotos = [];
+let currentPhotoIndex = 0;
+
+function showPhotoAt(i) {
+  if (!currentPhotos[i]) return;
+  currentPhotoIndex = i;
+  document.getElementById('fp-photo').src = currentPhotos[i].url;
+  document.querySelectorAll('.fp-thumb').forEach(t => {
+    t.classList.toggle('active', parseInt(t.dataset.i, 10) === i);
+  });
+}
+
+function openLightbox(i) {
+  if (!currentPhotos.length) return;
+  currentPhotoIndex = i;
+  renderLightbox();
+  document.getElementById('photo-lightbox').classList.remove('hidden');
+}
+
+function closeLightbox() {
+  document.getElementById('photo-lightbox').classList.add('hidden');
+}
+
+function renderLightbox() {
+  const p = currentPhotos[currentPhotoIndex];
+  if (!p) return;
+  document.getElementById('lb-image').src = p.url;
+  const multi = currentPhotos.length > 1;
+  document.getElementById('lb-caption').textContent =
+    multi ? `${p.name} — ${currentPhotoIndex + 1} of ${currentPhotos.length}` : p.name;
+  document.getElementById('lb-prev').style.display = multi ? 'flex' : 'none';
+  document.getElementById('lb-next').style.display = multi ? 'flex' : 'none';
+}
+
+function stepPhoto(delta) {
+  if (!currentPhotos.length) return;
+  currentPhotoIndex = (currentPhotoIndex + delta + currentPhotos.length) % currentPhotos.length;
+  renderLightbox();
+  showPhotoAt(currentPhotoIndex);
+}
+
+document.getElementById('fp-photo').addEventListener('click', () => openLightbox(currentPhotoIndex));
+document.getElementById('lb-close').addEventListener('click', closeLightbox);
+document.getElementById('lb-prev').addEventListener('click', () => stepPhoto(-1));
+document.getElementById('lb-next').addEventListener('click', () => stepPhoto(1));
+document.getElementById('photo-lightbox').addEventListener('click', (e) => {
+  if (e.target.id === 'photo-lightbox') closeLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if (document.getElementById('photo-lightbox').classList.contains('hidden')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') stepPhoto(-1);
+  if (e.key === 'ArrowRight') stepPhoto(1);
+});
+
+// ══════════════════════════════════════════
 // FEATURE PANEL
 // ══════════════════════════════════════════
 async function openFeaturePanel(grave) {
@@ -984,19 +1042,39 @@ async function openFeaturePanel(grave) {
   // Load photo and audio
   const photoEl = document.getElementById('fp-photo');
   photoEl.style.display = 'none';
+  currentPhotos = [];
+  currentPhotoIndex = 0;
+  document.getElementById('fp-thumbs').style.display = 'none';
+  document.getElementById('fp-thumbs').innerHTML = '';
   document.getElementById('fp-audio').style.display = 'none';
   document.getElementById('fp-docs').style.display = 'none';
   document.getElementById('fp-docs-list').innerHTML = '';
 
   const { data: atts } = await sb.from('attachments').select('*').eq('grave_id', grave.id);
   if (atts && atts.length > 0) {
-    // Photo
-    const photo = atts.find(a => a.file_type === 'photo');
-    if (photo) {
-      const { data: signedData } = await sb.storage.from('graves-media').createSignedUrl(photo.file_path, 3600);
-      if (signedData?.signedUrl) {
-        photoEl.src = signedData.signedUrl;
+    // Photos — all of them, oldest first
+    const photos = atts
+      .filter(a => a.file_type === 'photo')
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    if (photos.length > 0) {
+      const signed = await Promise.all(photos.map(async p => {
+        const { data } = await sb.storage.from('graves-media').createSignedUrl(p.file_path, 3600);
+        return data?.signedUrl ? { url: data.signedUrl, name: p.file_name } : null;
+      }));
+      currentPhotos = signed.filter(Boolean);
+      if (currentPhotos.length > 0) {
+        showPhotoAt(0);
         photoEl.style.display = 'block';
+        const thumbs = document.getElementById('fp-thumbs');
+        if (currentPhotos.length > 1) {
+          thumbs.innerHTML = currentPhotos.map((p, i) =>
+            `<img class="fp-thumb${i === 0 ? ' active' : ''}" data-i="${i}" src="${p.url}" alt=""/>`
+          ).join('');
+          thumbs.querySelectorAll('.fp-thumb').forEach(t => {
+            t.addEventListener('click', () => showPhotoAt(parseInt(t.dataset.i, 10)));
+          });
+          thumbs.style.display = 'flex';
+        }
       }
     }
     // Audio

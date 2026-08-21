@@ -3,7 +3,7 @@
 // Caches app shell + map tiles for offline use
 // ══════════════════════════════════════════
 
-const CACHE_VERSION = 'rootrecords-v17';
+const CACHE_VERSION = 'rootrecords-v18';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
 // Core app files cached on install
