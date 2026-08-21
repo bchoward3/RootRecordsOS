@@ -320,6 +320,23 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #fp-navigate:disabled { opacity: 0.6; }
 
+/* ── Guest read-only: only Trace and Navigate remain ── */
+#feature-panel.guest #fp-edit,
+#feature-panel.guest #fp-move,
+#feature-panel.guest #fp-delete { display: none; }
+#feature-panel.guest .fp-actions { grid-template-columns: 1fr; }
+
+/* ── Auth modal dismiss ── */
+.auth-box { position: relative; }
+#auth-close {
+  position: absolute; top: 4px; right: 4px;
+  background: none; border: none; color: var(--brown);
+  font-size: 18px; cursor: pointer;
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
+#auth-close:hover { color: var(--dark-brown); }
+
 /* ── Off-road bearing label ── */
 .rr-offroad-label span {
   display: inline-block;

@@ -83,8 +83,18 @@ labelsLayer = L.layerGroup().addTo(map);
 // ══════════════════════════════════════════
 async function checkAuth() {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) setUser(session.user);
-  else { updateBasemapAccess(); showAuthModal(); }
+  if (session) {
+    setUser(session.user);
+  } else {
+    // Guest: land in the app read-only. Sign-in is available from the
+    // header button, not forced on arrival.
+    currentUser = null;
+    document.getElementById('auth-modal').classList.add('hidden');
+    document.getElementById('login-btn').style.display = 'block';
+    document.getElementById('user-indicator').style.display = 'none';
+    updateBasemapAccess();
+    loadGraves();
+  }
 }
 
 // Basemaps that cost money per tile — hidden from guests so visitors
@@ -127,6 +137,16 @@ document.getElementById('auth-submit').addEventListener('click', async () => {
 });
 
 document.getElementById('login-btn').addEventListener('click', showAuthModal);
+document.getElementById('auth-close').addEventListener('click', () => {
+  document.getElementById('auth-modal').classList.add('hidden');
+});
+document.getElementById('auth-guest').addEventListener('click', () => {
+  document.getElementById('auth-modal').classList.add('hidden');
+});
+document.getElementById('auth-modal').addEventListener('click', (e) => {
+  // Backdrop click dismisses; clicks inside the box do not.
+  if (e.target.id === 'auth-modal') e.target.classList.add('hidden');
+});
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await sb.auth.signOut();
   currentUser = null;
@@ -141,7 +161,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
       o.classList.toggle('active', o.dataset.bm === 'voyager'));
   }
   updateBasemapAccess();
-  showAuthModal();
+  document.getElementById('feature-panel').style.display = 'none';
+  loadGraves();
 });
 
 // ══════════════════════════════════════════
@@ -809,6 +830,8 @@ function startNavigation(grave, coords) {
 async function openFeaturePanel(grave) {
   closeAllPanels();
   editingGrave = grave;
+  // Guests see Trace and Navigate only — write actions are hidden by CSS.
+  document.getElementById('feature-panel').classList.toggle('guest', !currentUser);
   document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
 
   const fields = [
@@ -875,6 +898,7 @@ async function openFeaturePanel(grave) {
 // EDIT PANEL
 // ══════════════════════════════════════════
 function openEditPanel(grave) {
+  if (!currentUser) { showAuthModal(); return; }
   document.getElementById('feature-panel').style.display = 'none';
   editingGrave = grave;
   const fieldDefs = [
@@ -1003,6 +1027,7 @@ document.getElementById('edit-save').addEventListener('click', async () => {
 // MOVE & DELETE
 // ══════════════════════════════════════════
 function startMoveMode(grave) {
+  if (!currentUser) { showAuthModal(); return; }
   document.getElementById('feature-panel').style.display = 'none';
   document.getElementById('click-banner').textContent = 'Tap map to set new location — tap again to cancel';
   document.getElementById('click-banner').style.display = 'block';
@@ -1020,6 +1045,7 @@ function startMoveMode(grave) {
 }
 
 async function deleteGrave(grave) {
+  if (!currentUser) { showAuthModal(); return; }
   if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
 
   // 1. Storage files first — once the attachment rows are gone we lose the paths.
