@@ -1092,6 +1092,7 @@ async function applyFilter(name, personId) {
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
   resetWebButton();
+  hideClearTrace();
   renderGraves(name);
 
   // Zoom to matching graves
@@ -1181,16 +1182,36 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('clear-filter-btn').addEventListener('click', () => {
+// Shared by the Filter panel's Clear Filter button and the floating
+// Clear Trace button on the map.
+function clearTraceAndFilter(resetView) {
   currentFilterName = null; currentFilterId = null;
   document.getElementById('filter-active').style.display = 'none';
   document.getElementById('web-legend').style.display = 'none';
+  document.getElementById('trace-options').style.display = 'none';
   document.getElementById('filter-search').value = '';
   lineageLayer.clearLayers();
   labelsLayer.clearLayers();
+  labeledNames.clear();
   resetWebButton();
+  hideClearTrace();
   renderGraves();
-  map.setView([37.8, -85.3], 7, { animate: true, duration: 1 });
+  if (resetView) map.setView([37.8, -85.3], 7, { animate: true, duration: 1 });
+}
+
+function showClearTrace() {
+  document.getElementById('clear-trace-btn').style.display = 'block';
+}
+function hideClearTrace() {
+  document.getElementById('clear-trace-btn').style.display = 'none';
+}
+
+document.getElementById('clear-trace-btn').addEventListener('click', () => {
+  clearTraceAndFilter(false);
+});
+
+document.getElementById('clear-filter-btn').addEventListener('click', () => {
+  clearTraceAndFilter(true);
 });
 
 // ══════════════════════════════════════════
@@ -1224,6 +1245,7 @@ async function runTrace(name, personId) {
   const lines = await traceFromPerson(name);
   btn.disabled = false; btn.textContent = '⬡ Trace Family Web';
   document.getElementById('web-legend').style.display = 'block';
+  if (lines > 0) showClearTrace(); else hideClearTrace();
   return lines;
 }
 
@@ -1358,14 +1380,19 @@ function addLabel(name, latlng, color, isSelected) {
   const display = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   if (labeledNames.has(display)) return;
   labeledNames.add(display);
-  const c = isSelected ? '#e8d5b0' : `rgba(${color[0]},${color[1]},${color[2]},0.9)`;
+  // The origin gets high-contrast cream-on-ink with a gold border so it
+  // reads as the starting point rather than another traced relative.
+  const c = isSelected ? '#f5efe0' : `rgba(${color[0]},${color[1]},${color[2]},1)`;
   const bg = isSelected ? '#1a1a2e' : 'white';
+  const border = isSelected ? '#c8b89a' : `rgba(${color[0]},${color[1]},${color[2]},0.5)`;
+  const weight = isSelected ? '700' : '600';
   const icon = L.divIcon({
-    className: '',
-    html: `<div style="background:${bg};color:${c};padding:2px 6px;border-radius:2px;font-size:10px;font-family:Georgia,serif;white-space:nowrap;border:1px solid rgba(${color[0]},${color[1]},${color[2]},0.4);box-shadow:0 1px 4px rgba(0,0,0,0.2);">${display}</div>`,
+    className: 'rr-trace-label',
+    html: `<div style="background:${bg};color:${c};padding:2px 6px;border-radius:2px;font-size:${isSelected ? 11 : 10}px;font-weight:${weight};font-family:Georgia,serif;white-space:nowrap;border:1px solid ${border};box-shadow:0 1px 4px rgba(0,0,0,0.25);">${display}</div>`,
+    iconSize: [0, 0],
     iconAnchor: [-4, 6]
   });
-  L.marker(latlng, { icon, interactive: false, zIndexOffset: -100 }).addTo(labelsLayer);
+  L.marker(latlng, { icon, interactive: false, zIndexOffset: isSelected ? 100 : -100 }).addTo(labelsLayer);
 }
 
 // ══════════════════════════════════════════
@@ -1389,6 +1416,7 @@ async function buildFullWeb() {
     labelsLayer.clearLayers();
     labeledNames.clear();
     resetWebButton();
+    hideClearTrace();
     return;
   }
 

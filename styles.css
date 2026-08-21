@@ -326,6 +326,31 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 #feature-panel.guest #fp-delete { display: none; }
 #feature-panel.guest .fp-actions { grid-template-columns: 1fr; }
 
+/* ── Trace labels — strip Leaflet's default div-icon box ── */
+.rr-trace-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+/* ── Clear Trace (floating, appears while a trace is drawn) ── */
+#clear-trace-btn {
+  position: fixed;
+  top: calc(58px + var(--safe-top));
+  left: 50%; transform: translateX(-50%);
+  z-index: 850; display: none;
+  background: var(--red); color: var(--parchment);
+  border: 1px solid var(--sepia); border-radius: 20px;
+  padding: 8px 18px; min-height: 40px;
+  font-family: 'Georgia', serif; font-size: 12px; letter-spacing: 0.5px;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+}
+#clear-trace-btn:hover { background: #a02020; }
+
 /* ── Auth modal dismiss ── */
 .auth-box { position: relative; }
 #auth-close {
