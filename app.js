@@ -429,6 +429,21 @@ function showStep(n) {
   });
 }
 
+// Between graves in the same cemetery: keep the cemetery/county/state you're
+// standing in, clear everything specific to the person. Location is NOT kept —
+// reusing it would stack two graves on one coordinate.
+function resetForNextGrave() {
+  const cem = document.getElementById('g-cemetery').value;
+  const county = document.getElementById('g-county').value;
+  const state = document.getElementById('g-state').value;
+  resetAddPanel();
+  document.getElementById('g-cemetery').value = cem;
+  document.getElementById('g-county').value = county;
+  document.getElementById('g-state').value = state;
+  showStatus('add-status',
+    `✓ Saved. ${cem ? cem + ' — n' : 'N'}ext grave: take a photo, then set location.`, 'success');
+}
+
 function resetAddPanel() {
   placedPoint = null;
   capturedPhotoBlob = null;
@@ -458,6 +473,7 @@ function resetAddPanel() {
   document.getElementById('add-status').className = 'status';
   document.getElementById('save-grave').textContent = 'Save Record';
   document.getElementById('save-grave').disabled = false;
+  document.getElementById('save-add-another').disabled = false;
   showStep(1);
 }
 
@@ -679,13 +695,17 @@ document.getElementById('cemetery-select').addEventListener('change', (e) => {
 });
 
 // Save grave
-document.getElementById('save-grave').addEventListener('click', async () => {
+let addAnotherMode = false;
+
+async function handleSaveGrave() {
   if (!placedPoint) { showStatus('add-status', 'No location set. Go back and tap the map.', 'error'); return; }
   const name = document.getElementById('g-name').value.trim();
   if (!name) { showStatus('add-status', 'Person name is required.', 'error'); return; }
 
   const btn = document.getElementById('save-grave');
+  const btnAnother = document.getElementById('save-add-another');
   btn.disabled = true; btn.textContent = 'Saving...';
+  btnAnother.disabled = true;
 
   // Build the record payload
   const recordPayload = {
@@ -710,11 +730,22 @@ document.getElementById('save-grave').addEventListener('click', async () => {
       showStatus('add-status', `📴 Saved offline — ${count} record${count === 1 ? '' : 's'} queued for sync`, 'info');
       btn.textContent = 'Queued!';
       updateSyncBadge();
-      setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 2000);
+      if (addAnotherMode) {
+        const cemNow = document.getElementById('g-cemetery').value;
+        resetAddPanel();
+        document.getElementById('g-cemetery').value = cemNow;
+        document.getElementById('g-county').value = recordPayload.county || '';
+        document.getElementById('g-state').value = recordPayload.state || 'KY';
+        showStatus('add-status',
+          `📴 Queued (${count} pending). Next grave: take a photo, then set location.`, 'info');
+      } else {
+        setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 2000);
+      }
       return;
     } catch (err) {
       showStatus('add-status', `Offline save failed: ${err.message}`, 'error');
       btn.disabled = false; btn.textContent = 'Save Record';
+      btnAnother.disabled = false;
       return;
     }
   }
@@ -790,13 +821,27 @@ document.getElementById('save-grave').addEventListener('click', async () => {
     }
     btn.textContent = 'Saved!';
     await loadGraves();
-    setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
+    if (addAnotherMode) {
+      resetForNextGrave();
+    } else {
+      setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
+    }
 
   } catch (err) {
     console.error(err);
     showStatus('add-status', `Save failed: ${err.message}`, 'error');
     btn.disabled = false; btn.textContent = 'Save Record';
+    btnAnother.disabled = false;
   }
+}
+
+document.getElementById('save-grave').addEventListener('click', () => {
+  addAnotherMode = false;
+  handleSaveGrave();
+});
+document.getElementById('save-add-another').addEventListener('click', () => {
+  addAnotherMode = true;
+  handleSaveGrave();
 });
 
 // ══════════════════════════════════════════
