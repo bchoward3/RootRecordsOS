@@ -37,14 +37,8 @@ const basemaps = {
   light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
   }),
-  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
-  }),
   topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
     attribution: '© USGS The National Map', maxZoom: 16
-  }),
-  terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri', maxZoom: 16
   }),
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', maxZoom: 19
@@ -187,7 +181,7 @@ function renderGraves(filter) {
     const coords = parseLocation(g.location);
     if (!coords) return;
     const icon = L.icon({
-      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
+      iconUrl: 'grave.png',
       iconSize: [20, 28],
       iconAnchor: [10, 28]
     });
@@ -1328,7 +1322,7 @@ function renderGravesById(names) {
     const coords = parseLocation(g.location);
     if (!coords) return;
     const icon = L.icon({
-      iconUrl: currentBasemap === 'dark' ? 'grave_light.png' : 'grave.png',
+      iconUrl: 'grave.png',
       iconSize: [20, 28],
       iconAnchor: [10, 28]
     });
