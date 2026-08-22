@@ -6,7 +6,7 @@ bchoward@wisc.edu
 ## Overview
 RootRecords is a full-stack FOSS web mapping application built for genealogy research. It allows users to spatially record grave sites to uncover ancestral and descendant relationships across generations through an interactive family web visualization.
 
-The application was designed with a specific real-world use case in mind: conducting a family mapping project in eastern Kentucky in September 2026. While originally envisioned primarily as a desktop application for research and display it has a powerful secondary function as a mobile data collection device. New features have been added in order to streamline the record collection process and address the often difficult task of field data collection in sub-optimal conditions (rural areas with poor service, inclement weather and dense foliage). 
+The application was designed with a specific real-world use case in mind: conducting a family mapping project in eastern Kentucky in September 2026. While originally envisioned primarily as a desktop application for research and display it has a powerful secondary function as a mobile data collection device. New features have been added in order to streamline the record collection process and address the often difficult task of field data collection in sub-optimal conditions such as rural areas with poor service, inclement weather and dense foliage. 
 
 Most genealogical data exists in tabular form with no spatial component. RootRecords addresses this gap by providing a geographic record of family history that can reveal migration patterns, family clustering, and generational dispersal that tabular data alone fails to convey. 
 
