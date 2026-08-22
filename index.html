@@ -131,7 +131,7 @@
   </div>
 </div>
 
-<!-- Bottom toolbar -->
+<!-- Bottom screen toolbar -->
 <div id="toolbar">
   <button class="tool-btn" id="btn-add">＋ Add Grave</button>
   <button class="tool-btn secondary" id="btn-filter">⌕ Filter by Person</button>
@@ -139,14 +139,14 @@
   <button class="tool-btn secondary" id="btn-layers">≡ Layers</button>
 </div>
 
-<!-- One-time GPS tip banner -->
+<!-- One-time GPS tip banner for user -->
 <div id="gps-tip" style="display:none;position:fixed;top:calc(48px + var(--safe-top));left:0;right:0;z-index:1100;background:#2c1a0e;color:var(--cream);padding:10px 16px;font-size:11px;font-family:Georgia,serif;line-height:1.5;">
   💡 <strong>Tip:</strong> Enable GPS for your camera for automatic location capture from photos.
   Go to <strong>Settings → Privacy → Location Services → Camera → While Using</strong>
   <button onclick="dismissGpsTip()" style="float:right;background:none;border:1px solid var(--sepia);color:var(--cream);padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;margin-top:-2px;">Got it</button>
 </div>
 
-<!-- ══ ADD GRAVE PANEL ══ -->
+<!-- Add Grave Panel defined -->
 <div class="panel" id="add-panel">
   <div class="panel-header">
     <span class="panel-title" id="add-panel-title">Add Grave</span>
@@ -275,7 +275,7 @@
   </div>
 </div>
 
-<!-- ══ FILTER PANEL ══ -->
+<!-- Filter Panel defined -->
 <div class="panel" id="filter-panel">
   <div class="panel-header">
     <span class="panel-title">Filter by Person</span>
@@ -319,7 +319,7 @@
   </div>
 </div>
 
-<!-- ══ LAYERS PANEL ══ -->
+<!-- Layer panel defined-->
 <div class="panel" id="layers-panel">
   <div class="panel-header">
     <span class="panel-title">Layers &amp; Offline</span>
@@ -370,7 +370,7 @@
   </div>
 </div>
 
-<!-- ══ FEATURE PANEL ══ -->
+<!-- Feature panel defined-->
 <div id="feature-panel">
   <div class="fp-header">
     <span class="fp-title" id="fp-title">Record</span>
@@ -398,7 +398,7 @@
   <div id="fp-resize-handle"></div>
 </div>
 
-<!-- ══ EDIT PANEL ══ -->
+<!-- Edit Panel defined-->
 <div class="panel" id="edit-panel">
   <div class="panel-header">
     <span class="panel-title">Edit Record</span>
@@ -423,7 +423,7 @@
   </div>
 </div>
 
-<!-- App script -->
+<!-- JS script -->
 <script src="app.js"></script>
 </body>
 </html>

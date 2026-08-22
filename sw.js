@@ -1,12 +1,10 @@
-// ══════════════════════════════════════════
 // RootRecords Service Worker
 // Caches app shell + map tiles for offline use
-// ══════════════════════════════════════════
 
 const CACHE_VERSION = 'rootrecords-v19';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
-// Core app files cached on install
+// Core app files to cache on install
 const APP_SHELL = [
   './',
   './index.html',
@@ -45,7 +43,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ── Fetch: serve from cache, fall back to network ──
+// Fetch: serve from cache, fall back to network
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
