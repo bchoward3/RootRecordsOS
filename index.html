@@ -28,6 +28,9 @@
   <!-- ORS routing module -->
   <script src="route.js"></script>
 
+  <!-- Place search -->
+  <script src="geocode.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -104,6 +107,18 @@
   </div>
   <div id="nav-offroad"></div>
   <div id="nav-steps"></div>
+</div>
+
+<button id="geo-btn" title="Search places">🔍</button>
+
+<div id="geo-panel">
+  <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Find a Place</div>
+  <div style="display:flex;gap:6px;">
+    <input class="rr-input" id="geo-input" type="text" placeholder="Address, town, or cemetery" style="flex:1;min-height:38px;font-size:13px;"/>
+    <button class="rr-btn" id="geo-search" style="width:auto;margin-top:0;padding:0 14px;min-height:38px;">Go</button>
+  </div>
+  <div id="geo-results"></div>
+  <div id="geo-status" style="font-size:10px;color:var(--brown);margin-top:6px;"></div>
 </div>
 
 <button id="labels-btn" title="Label options">🏷</button>
