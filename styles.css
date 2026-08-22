@@ -16,7 +16,7 @@
 
 html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink); color: var(--parchment); overflow: hidden; }
 
-/* ── Header ── */
+/*Header*/
 #header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   height: calc(48px + var(--safe-top));
@@ -37,7 +37,7 @@ html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink)
 #user-indicator { font-size: 10px; color: #9a8c72; display: flex; align-items: center; gap: 8px; }
 #logout-btn { background: none; border: none; color: #9a8c72; font-size: 10px; cursor: pointer; text-decoration: underline; }
 
-/* ── Map ── */
+/*Map*/
 #map {
   position: fixed;
   top: calc(48px + var(--safe-top));
@@ -46,7 +46,7 @@ html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink)
   z-index: 1;
 }
 
-/* ── Bottom toolbar ── */
+/*Bottom toolbar*/
 #toolbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
   height: calc(60px + var(--safe-bot));
@@ -68,7 +68,7 @@ html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink)
 .tool-btn.secondary:hover { background: var(--parchment); }
 .tool-btn.active { background: var(--red); }
 
-/* ── Panels (shared) ── */
+/*Panels (shared)*/
 .panel {
   position: fixed; z-index: 1001;
   background: var(--parchment); border-radius: 8px 8px 0 0;
@@ -91,7 +91,7 @@ html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink)
 .panel-close { background: none; border: none; color: var(--cream); font-size: 20px; cursor: pointer; line-height: 1; padding: 0; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 .panel-body { padding: 16px; }
 
-/* ── Form elements ── */
+/*Form elements*/
 .rr-label { font-size: 10px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; margin-top: 12px; display: block; }
 .rr-input {
   width: 100%; padding: 10px 12px; border: 1px solid var(--sepia);
@@ -113,13 +113,13 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .rr-btn.secondary { background: white; color: var(--ink); border: 1px solid var(--sepia); }
 .rr-btn.secondary:hover { background: var(--parchment); }
 
-/* ── Step indicator ── */
+/*Step indicator*/
 .steps { display: flex; gap: 6px; margin-bottom: 16px; }
 .step { flex: 1; height: 4px; background: #ddd; border-radius: 2px; }
 .step.done { background: #5a7a5a; }
 .step.active { background: var(--ink); }
 
-/* ── Sepia feature panel ── */
+/*Sepia feature panel*/
 #feature-panel {
   position: fixed;
   background: var(--parchment); z-index: 1002;
@@ -150,22 +150,22 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .fp-btn { padding: 6px; border: none; border-radius: 3px; font-size: 10px; cursor: pointer; font-family: 'Georgia', serif; min-height: 36px; }
 .fp-btn { padding: 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; min-height: 44px; }
 
-/* ── Filter panel ── */
+/*Filter panel*/
 #browse-list { max-height: 200px; overflow-y: auto; border: 1px solid var(--sepia); border-radius: 4px; margin-top: 8px; }
 .browse-item { padding: 10px 12px; border-bottom: 1px solid #f0e8d8; cursor: pointer; font-size: 13px; color: var(--dark-brown); min-height: 44px; display: flex; align-items: center; justify-content: space-between; }
 .browse-item:hover { background: #f0e8d8; }
 .browse-item .dates { font-size: 10px; color: var(--brown); }
 
-/* ── Generation pills ── */
+/*Generation pills*/
 .pill-row { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
 .gen-pill { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #ccc; background: white; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #aaa; }
 .gen-pill.selected { border-color: var(--red); background: #f5e8e8; color: var(--red); font-weight: bold; }
 
-/* ── Legend ── */
+/*Legend*/
 .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--dark-brown); }
 .legend-line { width: 28px; height: 3px; border-radius: 1px; }
 
-/* ── Auth modal ── */
+/*Auth modal*/
 #auth-modal {
   position: fixed; inset: 0; z-index: 2000;
   background: rgba(0,0,0,0.7);
@@ -182,13 +182,13 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .auth-box p { font-size: 11px; color: var(--brown); text-align: center; margin-bottom: 20px; }
 #auth-error { color: var(--red); font-size: 11px; margin-top: 8px; text-align: center; display: none; }
 
-/* ── Status messages ── */
+/*Status messages*/
 .status { padding: 10px 12px; border-radius: 4px; font-size: 12px; margin-top: 8px; display: none; }
 .status.success { background: #e8f0e8; color: #2d5a2d; display: block; }
 .status.error { background: #f0e8e8; color: var(--red); display: block; }
 .status.info { background: #e8eaf0; color: #2d2d5a; display: block; }
 
-/* ── Offline banner ── */
+/*Offline banner*/
 #offline-banner {
   position: fixed; top: calc(48px + var(--safe-top)); left: 0; right: 0;
   background: #5a3a1a; color: var(--cream);
@@ -196,11 +196,11 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   z-index: 900; display: none; letter-spacing: 0.5px;
 }
 
-/* ── Map controls override ── */
+/*Map controls override*/
 .leaflet-control-zoom { border: 1px solid var(--sepia) !important; }
 .leaflet-control-zoom a { color: var(--dark-brown) !important; font-family: 'Georgia', serif !important; }
 
-/* ── Locate button ── */
+/*Locate button*/
 #locate-btn {
   position: fixed; right: 12px; bottom: calc(80px + var(--safe-bot));
   width: 44px; height: 44px; border-radius: 50%;
@@ -210,7 +210,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* ── Basemap gallery ── */
+/*Basemap gallery*/
 #basemap-btn {
   position: fixed; right: 12px; bottom: calc(134px + var(--safe-bot));
   width: 44px; height: 44px; border-radius: 50%;
@@ -229,7 +229,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .bm-option:hover { background: var(--parchment); }
 .bm-option.active { font-weight: bold; color: var(--red); }
 
-/* ── Click banner ── */
+/*Click banner*/
 #click-banner {
   position: fixed; bottom: calc(80px + var(--safe-bot)); left: 50%;
   transform: translateX(-50%);
@@ -239,7 +239,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.3); letter-spacing: 0.5px;
 }
 
-/* ── Sync indicator ── */
+/*Sync indicator*/
 #sync-badge {
   position: fixed; left: 12px; bottom: calc(80px + var(--safe-bot));
   background: #5a3a1a; color: var(--cream);
@@ -252,7 +252,7 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 }
 #sync-badge:hover { background: #6b4c2a; }
 
-/* ── Extent button ── */
+/* Extent button*/
 #extent-btn {
   position: fixed; right: 12px; bottom: calc(188px + var(--safe-bot));
   width: 44px; height: 44px; border-radius: 50%;
@@ -262,18 +262,18 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-/* ── Audio recording ── */
+/*Audio recording*/
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 audio { accent-color: var(--dark-brown); width: 100%; }
 
-/* ── Feature panel audio playback ── */
+/*Feature panel audio playback*/
 .fp-audio { padding: 8px 12px; border-top: 1px solid var(--sepia); background: #f9f5ee; }
 .fp-audio-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
 
-/* ── Feature panel resize handle ── */
+/*Feature panel resize handle*/
 #fp-resize-handle {
   position: absolute;
   bottom: 0;
@@ -287,7 +287,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #fp-resize-handle:hover { opacity: 1; }
 
-/* ── Map labels ── */
+/*Map labels*/
 .grave-label {
   background: transparent !important;
   border: none !important;
@@ -311,7 +311,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   font-weight: normal !important;
 }
 
-/* ── Navigate button (spans full row under the other four) ── */
+/*Navigate button (spans full row under the other four)*/
 #fp-navigate {
   grid-column: 1 / -1;
   background: #2d5a2d;
@@ -320,13 +320,13 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #fp-navigate:disabled { opacity: 0.6; }
 
-/* ── Guest read-only: only Trace and Navigate remain ── */
+/*Guest read-only: only Trace and Navigate remain*/
 #feature-panel.guest #fp-edit,
 #feature-panel.guest #fp-move,
 #feature-panel.guest #fp-delete { display: none; }
 #feature-panel.guest .fp-actions { grid-template-columns: 1fr; }
 
-/* ── Trace labels — strip Leaflet's default div-icon box ── */
+/*Trace labels — strip Leaflet's default div-icon box*/
 .rr-trace-label {
   background: transparent !important;
   border: none !important;
@@ -336,7 +336,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   margin: 0 !important;
 }
 
-/* ── Clear Trace (floating, appears while a trace is drawn) ── */
+/*Clear Trace (floating, appears while a trace is drawn)*/
 #clear-trace-btn {
   position: fixed;
   top: calc(58px + var(--safe-top));
@@ -351,7 +351,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #clear-trace-btn:hover { background: #a02020; }
 
-/* ── Labels button (right-hand stack, above extent) ── */
+/*Labels button (right-hand stack, above extent)*/
 #labels-btn {
   position: fixed; right: 12px; bottom: calc(242px + var(--safe-bot));
   width: 44px; height: 44px; border-radius: 50%;
@@ -371,7 +371,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   font-family: 'Georgia', serif;
 }
 
-/* ── Grave tooltips — halo instead of a box ── */
+/*Grave tooltips — halo instead of a box*/
 .grave-tooltip {
   background: transparent !important;
   border: none !important;
@@ -398,7 +398,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #map.labels-hidden .grave-tooltip { display: none !important; }
 
-/* ── Marker halo so coffins read on satellite/dark tiles ── */
+/*Marker halo so coffins read on satellite/dark tiles*/
 .grave-marker {
   filter:
     drop-shadow(0 0 2px rgba(245,239,224,0.95))
@@ -406,7 +406,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
     drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
-/* ── Feature panel documents ── */
+/*Feature panel documents*/
 #fp-docs {
   padding: 8px 12px;
   border-top: 1px solid var(--sepia);
@@ -427,7 +427,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   font-size: 9px; color: var(--brown);
 }
 
-/* ── Photo gallery ── */
+/*Photo gallery*/
 .fp-photo { cursor: zoom-in; }
 #fp-thumbs {
   display: flex; gap: 4px; padding: 6px 8px;
@@ -441,7 +441,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 .fp-thumb.active { border-color: var(--cream); opacity: 1; }
 
-/* ── Lightbox ── */
+/*Lightbox*/
 #photo-lightbox {
   position: fixed; inset: 0; z-index: 3000;
   background: rgba(10,10,20,0.96);
@@ -476,7 +476,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   font-size: 12px; padding: 0 16px;
 }
 
-/* ── Attachment delete (edit panel) ── */
+/*Attachment delete (edit panel)*/
 .att-delete {
   flex-shrink: 0;
   background: none; border: 1px solid var(--sepia); border-radius: 3px;
@@ -486,7 +486,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 .att-delete:hover { background: #f5e8e8; border-color: var(--red); }
 
-/* ── Auth modal dismiss ── */
+/*Auth modal dismiss*/
 .auth-box { position: relative; }
 #auth-close {
   position: absolute; top: 4px; right: 4px;
@@ -497,7 +497,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #auth-close:hover { color: var(--dark-brown); }
 
-/* ── Off-road bearing label ── */
+/*Off-road bearing label*/
 .rr-offroad-label span {
   display: inline-block;
   transform: translate(-50%, -50%);
@@ -513,7 +513,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   pointer-events: none;
 }
 
-/* ── Turn-by-turn panel ── */
+/*Turn-by-turn panel*/
 #nav-panel {
   position: fixed;
   left: 12px; right: 12px;
@@ -553,7 +553,7 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #nav-minimize:hover { opacity: 1; }
 
-/* Collapsed — header bar only, so the map is visible */
+/*Collapsed — header bar only, so the map is visible*/
 #nav-panel.minimized { max-height: none; overflow: visible; }
 #nav-panel.minimized #nav-steps,
 #nav-panel.minimized #nav-offroad,

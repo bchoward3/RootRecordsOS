@@ -13,8 +13,7 @@
   var ORS_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6Ijg2YzE4NGQyOTU2MjRhNzU4N2FmM2I1MjZmNGU2M2M0IiwiaCI6Im11cm11cjY0In0=';
   var ORS_URL = 'https://api.heigit.org/openrouteservice/v2/directions/driving-car';
 
-  // How far the route's end can sit from the grave before we draw a final
-  // bearing leg. ORS snaps to the nearest road, so anything beyond this is
+  // How far the route's end can sit from the grave before drawing a final bearing leg. ORS snaps to the nearest road, so anything beyond this is
   // road network that doesn't actually reach the site.
   var SNAP_TOLERANCE_M = 50;
 
@@ -96,16 +95,12 @@
 
   /* ---------- ORS ---------- */
 
-  // ORS default snap radius is 350m — far too tight for cemeteries off
-  // unmapped holler roads. This is how far we let the destination reach
-  // for a road before giving up entirely.
+  // ORS default snap radius is 350m — far too tight for cemeteries off unmapped rural roads. This is how far the destination reaches for a road before giving up entirely.
   var DEST_SNAP_RADIUS_M = 20000;
   var START_SNAP_RADIUS_M = 1000;
 
   function fetchRoute(from, to) {
-    // POST (not GET) because the radiuses parameter isn't available on the
-    // GET form. Preflight sends "authorization,content-type" — already
-    // sorted/unique/lowercase, which the ORS CORS layer requires.
+    // POST (not GET) because the radiuses parameter isn't available on the GET form. Preflight sends "authorization,content-type" — already sorted/unique/lowercase, which the ORS CORS layer requires.
     return fetch(ORS_URL + '/geojson', {
       method: 'POST',
       headers: {

@@ -1,8 +1,4 @@
-// ══════════════════════════════════════════
-// RootRecords — IndexedDB offline queue
-// Stores records captured without connectivity
-// and syncs them to Supabase when back online
-// ══════════════════════════════════════════
+// RootRecords — IndexedDB offline queue, stores records captured without connectivity and syncs them to Supabase when back online
 
 const DB_NAME = 'rootrecords-offline';
 const DB_VERSION = 1;
@@ -11,7 +7,7 @@ const STORE_MEDIA = 'media_blobs';
 
 let db = null;
 
-// ── Open / create database ──
+// ── Open/create database ──
 function openDB() {
   return new Promise((resolve, reject) => {
     if (db) return resolve(db);
@@ -30,7 +26,7 @@ function openDB() {
         store.createIndex('created_at', 'created_at', { unique: false });
       }
 
-      // Photo / audio blobs waiting to upload
+      // Photo/audio blobs waiting to upload
       if (!database.objectStoreNames.contains(STORE_MEDIA)) {
         database.createObjectStore(STORE_MEDIA, {
           keyPath: 'id',
@@ -86,7 +82,7 @@ async function queueRecord(payload, photoBlob, audioBlob) {
   });
 }
 
-// ── Get all unsynced records ──
+// Get all unsynced records 
 async function getPendingRecords() {
   const database = await openDB();
   const tx = database.transaction(STORE_QUEUE, 'readonly');
@@ -98,7 +94,7 @@ async function getPendingRecords() {
   });
 }
 
-// ── Get a media blob by id ──
+// Get a media blob by id
 async function getMediaBlob(id) {
   if (!id) return null;
   const database = await openDB();
@@ -111,7 +107,7 @@ async function getMediaBlob(id) {
   });
 }
 
-// ── Mark record as synced and clean up ──
+// Mark record as synced and clean up
 async function markSynced(queueId, photoId, audioId) {
   const database = await openDB();
 

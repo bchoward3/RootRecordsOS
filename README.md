@@ -50,6 +50,7 @@ Relationship classes are defined between each site layer and the Persons table v
 - **Service Worker** (`sw.js`) — caches the app's files and downloaded map tiles so it loads and the map draws without a connection.
 - **IndexedDB** (`db.js`) — queues records captured offline, along with associated photos and audio, and syncs when the connection returns. Stored on disk so the queue survives the app being closed or terminated.
 - **Web App Manifest** (`manifest.json`) — lets the site install to a phone's home screen and open full-screen like a native app.
+- Suggested workflow for anticipated service interruption: download tiles for planned working area while still in service.
 
 ## Authentication
 - Sign in handled by Supabase with accounts required to create, edit and delete records.
