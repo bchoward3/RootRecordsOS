@@ -486,42 +486,6 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 .att-delete:hover { background: #f5e8e8; border-color: var(--red); }
 
-/* ── Place search ── */
-#geo-btn {
-  position: fixed; right: 12px; bottom: calc(296px + var(--safe-bot));
-  width: 44px; height: 44px; border-radius: 50%;
-  background: white; border: 1px solid var(--sepia);
-  font-size: 17px; cursor: pointer; z-index: 400;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-#geo-btn.active { background: var(--cream); border-color: var(--brown); }
-
-#geo-panel {
-  position: fixed; right: 12px; left: 12px;
-  bottom: calc(350px + var(--safe-bot));
-  max-width: 330px; margin-left: auto;
-  z-index: 400; display: none;
-  background: white; border: 1px solid var(--sepia); border-radius: 6px;
-  padding: 10px 12px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-  font-family: 'Georgia', serif;
-}
-#geo-results { max-height: 210px; overflow-y: auto; margin-top: 8px; }
-.geo-group {
-  font-size: 9px; color: var(--brown); text-transform: uppercase;
-  letter-spacing: 1px; padding: 6px 2px 2px;
-}
-.geo-item {
-  padding: 8px 6px; min-height: 42px; cursor: pointer;
-  border-bottom: 1px solid #f0e8d8;
-  display: flex; flex-direction: column; justify-content: center;
-}
-.geo-item:hover { background: var(--parchment); }
-.geo-item:last-child { border-bottom: none; }
-.geo-item-label { font-size: 12px; color: var(--dark-brown); }
-.geo-item-detail { font-size: 10px; color: var(--brown); }
-
 /* ── Auth modal dismiss ── */
 .auth-box { position: relative; }
 #auth-close {
