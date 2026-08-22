@@ -1,14 +1,9 @@
-// ══════════════════════════════════════════
-// SUPABASE INIT
-// ══════════════════════════════════════════
+// Supabase INIT
 const SUPABASE_URL = 'https://vyuqusttytnvqceoaniz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_gFLrIl6ZcWbWd434sPYUYw_X4Y_jLQn';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// State
-// Assigned inside the load block below. `basemaps` is NOT here — it's
-// declared as a const inside that block, and a duplicate here would be
-// permanently undefined and shadowed.
+// State Assigned inside the load block below. `basemaps` is NOT here — it's declared as a const inside that block, and a duplicate here would be permanently undefined and shadowed.
 let map, gravesLayer, lineageLayer, labelsLayer;
 let currentUser = null;
 let currentGraves = [];
@@ -31,9 +26,8 @@ window.addEventListener('load', () => {
 // temporal dead zone if it ever gets called during load.
 const labeledNames = new Set();
 
-// ══════════════════════════════════════════
-// MAP INIT
-// ══════════════════════════════════════════
+
+// Map INIT
 map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 
 // Routing module needs the map instance
@@ -81,16 +75,14 @@ gravesLayer = L.layerGroup().addTo(map);
 lineageLayer = L.layerGroup().addTo(map);
 labelsLayer = L.layerGroup().addTo(map);
 
-// ══════════════════════════════════════════
+
 // AUTH
-// ══════════════════════════════════════════
 async function checkAuth() {
   const { data: { session } } = await sb.auth.getSession();
   if (session) {
     setUser(session.user);
   } else {
-    // Guest: land in the app read-only. Sign-in is available from the
-    // header button, not forced on arrival.
+    // Guest lands in the app read-only. Sign-in is available from the header button but not forced on arrival.
     currentUser = null;
     document.getElementById('auth-modal').classList.add('hidden');
     document.getElementById('login-btn').style.display = 'block';
@@ -100,9 +92,7 @@ async function checkAuth() {
   }
 }
 
-// Basemaps that cost money per tile — hidden from guests so visitors
-// can't spend the quota. This is a courtesy, not security: the token is
-// still readable in app.js. Restrict it by URL in the Mapbox account.
+// Basemaps that cost money per tile — hidden from guests so visitors can't spend the quota. This is a courtesy, not security: the token is still readable in app.js. Restrict it by URL in the Mapbox account.
 const METERED_BASEMAPS = ['mapbox'];
 
 function updateBasemapAccess() {
@@ -168,9 +158,7 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   loadGraves();
 });
 
-// ══════════════════════════════════════════
-// LOAD GRAVES
-// ══════════════════════════════════════════
+// Load graves from Supabase and render them on the map and populate the cemetery dropdown for filtering.
 async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
   if (error) { console.error('Load graves failed:', error); return; }

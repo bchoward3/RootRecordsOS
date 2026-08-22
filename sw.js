@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App shell — cache-first, network fallback
+  //App shell — cache-first, network fallback
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
@@ -104,7 +104,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ── Message handler for cache management ──
+//Message handler for cache management
 self.addEventListener('message', (event) => {
   if (event.data?.action === 'clearTileCache') {
     caches.delete(TILE_CACHE).then(() => {
