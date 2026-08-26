@@ -37,7 +37,7 @@ if (window.RRRoute) RRRoute.init(map);
 // CARTO raster basemaps now require a free key (5M tiles/month).
 // Request one at https://carto.com/basemaps/apikey and paste it here.
 // Without it the tiles still load but carry an "API key required" watermark.
-const CARTO_KEY = '';
+const CARTO_KEY = 'cb1_25ei_1_4a1f2d4fcc7676aa77cdd80c';
 const cartoSuffix = CARTO_KEY ? '?key=' + CARTO_KEY : '';
 
 const basemaps = {
