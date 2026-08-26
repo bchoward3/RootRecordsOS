@@ -619,3 +619,32 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 .geo-item:last-child { border-bottom: none; }
 .geo-item-label { font-size: 12px; color: var(--dark-brown); }
 .geo-item-detail { font-size: 10px; color: var(--brown); }
+
+/* ── Search result pin ── */
+.geo-pin {
+  background: transparent !important;
+  border: none !important;
+}
+.geo-pin-dot {
+  width: 20px; height: 20px;
+  background: #2d5a2d;
+  border: 2px solid var(--parchment);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  margin: 2px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+  cursor: pointer;
+}
+.geo-pin-label {
+  background: var(--parchment) !important;
+  border: 1px solid #2d5a2d !important;
+  border-radius: 3px !important;
+  color: var(--dark-brown) !important;
+  font-family: 'Georgia', serif !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  padding: 3px 7px !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
+  white-space: nowrap;
+}
+.geo-pin-label::before { display: none !important; }

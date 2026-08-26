@@ -1461,6 +1461,37 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 // ══════════════════════════════════════════
 // PLACE SEARCH
 // ══════════════════════════════════════════
+// Marker dropped on a geocoded result. Deliberately not a grave icon —
+// it marks a searched location, not a record.
+let searchMarker = null;
+
+function clearSearchMarker() {
+  if (searchMarker) {
+    map.removeLayer(searchMarker);
+    searchMarker = null;
+  }
+}
+
+function dropSearchMarker(r) {
+  clearSearchMarker();
+  const icon = L.divIcon({
+    className: 'geo-pin',
+    html: '<div class="geo-pin-dot"></div>',
+    iconSize: [24, 32],
+    iconAnchor: [12, 32]
+  });
+  searchMarker = L.marker([r.lat, r.lng], { icon, zIndexOffset: 500 }).addTo(map);
+  searchMarker.bindTooltip(r.label, {
+    permanent: true,
+    direction: 'top',
+    offset: [0, -30],
+    className: 'geo-pin-label',
+    opacity: 1
+  });
+  // Tapping the pin removes it.
+  searchMarker.on('click', clearSearchMarker);
+}
+
 document.getElementById('geo-btn').addEventListener('click', () => {
   const panel = document.getElementById('geo-panel');
   const open = panel.style.display === 'block';
@@ -1477,6 +1508,7 @@ async function runPlaceSearch() {
 
   results.innerHTML = '';
   status.textContent = 'Searching\u2026';
+  clearSearchMarker();
 
   const { local, remote, offline } = await RRGeo.search(q, currentGraves);
 
@@ -1522,6 +1554,7 @@ function goToPlace(r) {
     if (c) map.setView([c.lat, c.lng], 16, { animate: true });
     openFeaturePanel(r.grave);
   } else {
+    dropSearchMarker(r);
     map.setView([r.lat, r.lng], 15, { animate: true });
   }
   document.getElementById('geo-panel').style.display = 'none';
