@@ -34,12 +34,18 @@ map = L.map('map', { zoomControl: true }).setView([37.8, -85.3], 7);
 // Routing module needs the map instance
 if (window.RRRoute) RRRoute.init(map);
 
+// CARTO raster basemaps now require a free key (5M tiles/month).
+// Request one at https://carto.com/basemaps/apikey and paste it here.
+// Without it the tiles still load but carry an "API key required" watermark.
+const CARTO_KEY = 'cb1_25ei_1_4a1f2d4fcc7676aa77cdd80c';
+const cartoSuffix = CARTO_KEY ? '?key=' + CARTO_KEY : '';
+
 const basemaps = {
-  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png' + cartoSuffix, {
+    attribution: '© CARTO © OpenStreetMap', subdomains: 'abcd', maxZoom: 20
   }),
-  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png' + cartoSuffix, {
+    attribution: '© CARTO © OpenStreetMap', subdomains: 'abcd', maxZoom: 20
   }),
   topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
     // Tiles stop at 16; upscale beyond that so zoom stays continuous when
