@@ -37,7 +37,7 @@ if (window.RRRoute) RRRoute.init(map);
 // CARTO raster basemaps now require a free key (5M tiles/month).
 // Request one at https://carto.com/basemaps/apikey and paste it here.
 // Without it the tiles still load but carry an "API key required" watermark.
-const CARTO_KEY = 'cb1_25ei_1_4a1f2d4fcc7676aa77cdd80c';
+const CARTO_KEY = '';
 const cartoSuffix = CARTO_KEY ? '?key=' + CARTO_KEY : '';
 
 const basemaps = {
@@ -63,6 +63,20 @@ const basemaps = {
     attribution: '© OpenTopoMap © OpenStreetMap', maxNativeZoom: 17, maxZoom: 19
   })
 };
+
+// Transparent shaded-relief overlay. Sits in its own pane between the
+// basemap and the markers, blended with multiply so the terrain darkens the
+// basemap rather than washing it out.
+map.createPane('hillshade');
+map.getPane('hillshade').style.zIndex = 250;
+map.getPane('hillshade').style.pointerEvents = 'none';
+map.getPane('hillshade').style.mixBlendMode = 'multiply';
+map.getPane('hillshade').style.opacity = '0.45';
+
+const hillshadeLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+  { attribution: '© Esri', maxNativeZoom: 16, maxZoom: 20, pane: 'hillshade' }
+);
 
 // Apply sepia CSS filter to map tiles
 const style = document.createElement('style');
@@ -405,6 +419,19 @@ document.getElementById('extent-btn').addEventListener('click', () => {
 });
 
 // Layer toggle
+document.getElementById('toggle-hillshade').addEventListener('change', e => {
+  if (e.target.checked) hillshadeLayer.addTo(map);
+  else map.removeLayer(hillshadeLayer);
+  try { localStorage.setItem('rr-hillshade', e.target.checked ? '1' : '0'); } catch (err) {}
+});
+
+try {
+  if (localStorage.getItem('rr-hillshade') === '1') {
+    document.getElementById('toggle-hillshade').checked = true;
+    hillshadeLayer.addTo(map);
+  }
+} catch (e) { /* private mode */ }
+
 document.getElementById('toggle-graves').addEventListener('change', e => {
   if (e.target.checked) gravesLayer.addTo(map);
   else map.removeLayer(gravesLayer);
