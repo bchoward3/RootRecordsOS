@@ -41,16 +41,19 @@ const basemaps = {
     attribution: '© CartoDB © OpenStreetMap', maxZoom: 19
   }),
   topo: L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© USGS The National Map', maxZoom: 16
+    // Tiles stop at 16; upscale beyond that so zoom stays continuous when
+    // switching basemaps rather than hitting a hard stop.
+    attribution: '© USGS The National Map', maxNativeZoom: 16, maxZoom: 19
   }),
   osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap', maxZoom: 19
   }),
   satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '© Esri', maxZoom: 19
+    // Rural imagery often tops out at 18; upscale rather than showing blanks.
+    attribution: '© Esri', maxNativeZoom: 18, maxZoom: 19
   }),
   toner: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenTopoMap © OpenStreetMap', maxZoom: 17
+    attribution: '© OpenTopoMap © OpenStreetMap', maxNativeZoom: 17, maxZoom: 19
   })
 };
 

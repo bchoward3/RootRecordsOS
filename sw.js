@@ -1,7 +1,7 @@
 // RootRecords Service Worker
 // Caches app shell + map tiles for offline use
 
-const CACHE_VERSION = 'rootrecords-v21';
+const CACHE_VERSION = 'rootrecords-v22';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
 // Core app files to cache on install
