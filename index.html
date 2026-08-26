@@ -31,6 +31,9 @@
   <!-- Place search -->
   <script src="geocode.js"></script>
 
+  <!-- Walk-in compass -->
+  <script src="compass.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -96,6 +99,19 @@
 
 <div id="sync-badge">⏳ Syncing offline records...</div>
 
+<div id="compass-overlay">
+  <div id="compass-header">
+    <span id="compass-target">Walking to grave</span>
+    <button id="compass-close" title="Stop">✕</button>
+  </div>
+  <div id="compass-dial">
+    <div id="compass-arrow">➤</div>
+  </div>
+  <div id="compass-distance">—</div>
+  <div id="compass-bearing">—</div>
+  <div id="compass-note"></div>
+</div>
+
 <div id="queue-panel">
   <div id="queue-header">
     <span id="queue-title">Pending records</span>
@@ -115,6 +131,7 @@
     </div>
   </div>
   <div id="nav-offroad"></div>
+  <button id="nav-walk-btn">🧭 Walk the last stretch</button>
   <div id="nav-steps"></div>
 </div>
 

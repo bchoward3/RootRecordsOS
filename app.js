@@ -922,8 +922,10 @@ function renderNavResult(result, destName) {
       '°) for <strong>' + RRRoute.formatFeet(o.distance) + '</strong>.' +
       (result.note ? '<br><span style="opacity:0.8;">' + result.note + '</span>' : '');
     offroad.classList.add('show');
+    document.getElementById('nav-walk-btn').classList.add('show');
   } else {
     offroad.classList.remove('show');
+    document.getElementById('nav-walk-btn').classList.remove('show');
   }
 
   steps.innerHTML = (result.steps || []).map(s =>
@@ -934,8 +936,11 @@ function renderNavResult(result, destName) {
   ).join('');
 }
 
+let lastNavDest = null;
+
 function startNavigation(grave, coords) {
   const btn = document.getElementById('fp-navigate');
+  lastNavDest = coords ? { lat: coords.lat, lng: coords.lng, name: grave.person_name } : null;
   if (!coords) {
     showNavStatus('This record has no location.');
     return;
@@ -1474,6 +1479,66 @@ document.getElementById('clear-trace-btn').addEventListener('click', () => {
 
 document.getElementById('clear-filter-btn').addEventListener('click', () => {
   clearTraceAndFilter(true);
+});
+
+// ══════════════════════════════════════════
+// WALK-IN COMPASS
+// ══════════════════════════════════════════
+// Live bearing to the grave for the final stretch on foot. Fully offline —
+// GPS and the magnetometer are hardware, no network involved.
+function openCompass(dest) {
+  if (!dest) return;
+  const overlay = document.getElementById('compass-overlay');
+  document.getElementById('compass-target').textContent =
+    dest.name ? 'Walking to ' + dest.name : 'Walking to grave';
+  document.getElementById('compass-distance').textContent = '—';
+  document.getElementById('compass-bearing').textContent = 'Waiting for GPS…';
+  document.getElementById('compass-note').textContent = '';
+  overlay.classList.remove('arrived');
+  overlay.classList.add('open');
+
+  // Must be called straight from the tap for the iOS compass permission.
+  RRCompass.start(dest, {
+    onReady: (hasHeading) => {
+      document.getElementById('compass-note').textContent = hasHeading
+        ? 'Hold the phone flat. If the arrow drifts, wave the phone in a figure eight to recalibrate.'
+        : 'Compass unavailable — the arrow points by map bearing, so orient the top of the phone to north.';
+    },
+    onUpdate: (st) => {
+      const arrow = document.getElementById('compass-arrow');
+      // The glyph points right at 0deg, so -90 makes 0 mean straight ahead.
+      arrow.style.transform = 'rotate(' + (st.arrow - 90) + 'deg)';
+      document.getElementById('compass-distance').textContent =
+        RRRoute.formatFeet(st.distance);
+      document.getElementById('compass-bearing').textContent =
+        st.compass + ' · ' + Math.round(st.bearing) + '° · ±' +
+        Math.round(st.accuracy) + 'm GPS';
+      document.getElementById('compass-overlay').classList.toggle('arrived', st.arrived);
+      if (st.arrived) {
+        document.getElementById('compass-bearing').textContent =
+          'You should be within a few paces — look around.';
+      }
+    },
+    onError: (msg) => {
+      document.getElementById('compass-bearing').textContent = msg;
+    }
+  });
+}
+
+function closeCompass() {
+  RRCompass.stop();
+  document.getElementById('compass-overlay').classList.remove('open');
+}
+
+document.getElementById('compass-close').addEventListener('click', closeCompass);
+document.getElementById('nav-walk-btn').addEventListener('click', () => {
+  openCompass(lastNavDest);
+});
+
+// Stop the sensors if the app is backgrounded — watchPosition left running
+// drains the battery for no benefit while the screen is off.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && RRCompass.isRunning()) closeCompass();
 });
 
 // ══════════════════════════════════════════
