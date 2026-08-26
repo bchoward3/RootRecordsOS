@@ -1459,6 +1459,81 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
+// PLACE SEARCH
+// ══════════════════════════════════════════
+document.getElementById('geo-btn').addEventListener('click', () => {
+  const panel = document.getElementById('geo-panel');
+  const open = panel.style.display === 'block';
+  panel.style.display = open ? 'none' : 'block';
+  document.getElementById('geo-btn').classList.toggle('active', !open);
+  if (!open) document.getElementById('geo-input').focus();
+});
+
+async function runPlaceSearch() {
+  const q = document.getElementById('geo-input').value.trim();
+  const results = document.getElementById('geo-results');
+  const status = document.getElementById('geo-status');
+  if (!q) return;
+
+  results.innerHTML = '';
+  status.textContent = 'Searching\u2026';
+
+  const { local, remote, offline } = await RRGeo.search(q, currentGraves);
+
+  const render = (items, heading) => {
+    if (items.length === 0) return;
+    const h = document.createElement('div');
+    h.className = 'geo-group';
+    h.textContent = heading;
+    results.appendChild(h);
+    items.forEach(r => {
+      const row = document.createElement('div');
+      row.className = 'geo-item';
+      const label = document.createElement('div');
+      label.className = 'geo-item-label';
+      label.textContent = r.count > 1 ? `${r.label} (${r.count} records)` : r.label;
+      row.appendChild(label);
+      if (r.detail) {
+        const detail = document.createElement('div');
+        detail.className = 'geo-item-detail';
+        detail.textContent = r.detail;
+        row.appendChild(detail);
+      }
+      row.addEventListener('click', () => goToPlace(r));
+      results.appendChild(row);
+    });
+  };
+
+  render(local, 'In your records');
+  render(remote, 'Places');
+
+  if (local.length === 0 && remote.length === 0) {
+    status.textContent = offline
+      ? 'No matching records. Address search needs a connection.'
+      : 'Nothing found. Try a town or county name.';
+  } else {
+    status.textContent = offline ? 'Offline \u2014 searched your records only.' : '';
+  }
+}
+
+function goToPlace(r) {
+  if (r.source === 'record' && r.grave) {
+    const c = parseLocation(r.grave.location);
+    if (c) map.setView([c.lat, c.lng], 16, { animate: true });
+    openFeaturePanel(r.grave);
+  } else {
+    map.setView([r.lat, r.lng], 15, { animate: true });
+  }
+  document.getElementById('geo-panel').style.display = 'none';
+  document.getElementById('geo-btn').classList.remove('active');
+}
+
+document.getElementById('geo-search').addEventListener('click', runPlaceSearch);
+document.getElementById('geo-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runPlaceSearch();
+});
+
+// ══════════════════════════════════════════
 // LABELS
 // ══════════════════════════════════════════
 document.getElementById('labels-btn').addEventListener('click', () => {
