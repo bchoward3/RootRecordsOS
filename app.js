@@ -19,6 +19,7 @@ let webVisible = false;
 let labelMode = 'name';        // 'name' | 'cemetery' | 'both'
 let labelsPermanent = false;   // false = hover only (desktop), true = always on
 let labelZoomThreshold = 12;
+let gravesWithPhotos = new Set();
 
 window.addEventListener('load', () => {
 
@@ -166,8 +167,22 @@ async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
+  await loadPhotoIndex();
   renderGraves();
   populateCemeteryDropdown();
+}
+
+// Which graves have at least one photo. Used to flag photo-less records on
+// the map so they can be caught while still on site.
+async function loadPhotoIndex() {
+  try {
+    const { data } = await sb.from('attachments')
+      .select('grave_id')
+      .eq('file_type', 'photo');
+    gravesWithPhotos = new Set((data || []).map(a => a.grave_id).filter(Boolean));
+  } catch (e) {
+    console.warn('[photos] index failed:', e.message);
+  }
 }
 
 function renderGraves(filter) {
@@ -205,7 +220,7 @@ function createGraveMarker(g, coords) {
     iconUrl: 'grave.png',
     iconSize: [20, 28],
     iconAnchor: [10, 28],
-    className: 'grave-marker'
+    className: gravesWithPhotos.has(g.id) ? 'grave-marker' : 'grave-marker no-photo'
   });
   const marker = L.marker([coords.lat, coords.lng], { icon });
   const text = graveLabelText(g);
@@ -1462,6 +1477,96 @@ document.getElementById('clear-filter-btn').addEventListener('click', () => {
 });
 
 // ══════════════════════════════════════════
+// DISPLAY THEME
+// ══════════════════════════════════════════
+// Themes are CSS variable overrides on <body>. Every component already reads
+// from those variables, so nothing else needs to know a theme changed.
+function applyTheme(name) {
+  document.body.classList.remove('theme-day', 'theme-night');
+  if (name !== 'standard') document.body.classList.add('theme-' + name);
+  document.querySelectorAll('.theme-opt').forEach(b =>
+    b.classList.toggle('active', b.dataset.theme === name));
+  try { localStorage.setItem('rr-theme', name); } catch (e) { /* private mode */ }
+}
+
+document.querySelectorAll('.theme-opt').forEach(btn => {
+  btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+});
+
+try {
+  const saved = localStorage.getItem('rr-theme');
+  if (saved) applyTheme(saved);
+} catch (e) { /* private mode */ }
+
+// ══════════════════════════════════════════
+// PENDING QUEUE REVIEW
+// ══════════════════════════════════════════
+async function showQueuePanel() {
+  const panel = document.getElementById('queue-panel');
+  const list = document.getElementById('queue-list');
+  const title = document.getElementById('queue-title');
+  list.innerHTML = '';
+
+  let pending = [];
+  try {
+    pending = await window.RRDb.getPendingRecords();
+  } catch (e) {
+    list.innerHTML = '<div class="queue-item">Could not read the queue.</div>';
+    panel.classList.add('open');
+    return;
+  }
+
+  title.textContent = pending.length === 1
+    ? '1 record pending sync'
+    : `${pending.length} records pending sync`;
+
+  if (pending.length === 0) {
+    list.innerHTML = '<div class="queue-item">Nothing pending — everything is synced.</div>';
+  } else {
+    pending.forEach(rec => {
+      const p = rec.payload || {};
+      const row = document.createElement('div');
+      row.className = 'queue-item';
+
+      const name = document.createElement('div');
+      name.className = 'queue-item-name';
+      name.textContent = p.person_name || 'Unnamed record';
+      row.appendChild(name);
+
+      const bits = [];
+      if (p.cemetery_name) bits.push(p.cemetery_name);
+      if (rec.created_at) bits.push(new Date(rec.created_at).toLocaleTimeString());
+      bits.push(rec.photoId ? 'photo' : 'no photo');
+      if (rec.audioId) bits.push('audio');
+
+      const meta = document.createElement('div');
+      meta.className = 'queue-item-meta';
+      meta.textContent = bits.join(' · ');
+      if (!rec.photoId) meta.classList.add('queue-flag');
+      row.appendChild(meta);
+
+      list.appendChild(row);
+    });
+  }
+
+  const syncBtn = document.getElementById('queue-sync');
+  syncBtn.disabled = !navigator.onLine || !currentUser || pending.length === 0;
+  syncBtn.textContent = !navigator.onLine
+    ? 'Offline — will sync when reconnected'
+    : (!currentUser ? 'Sign in to sync' : 'Sync now');
+
+  panel.classList.add('open');
+}
+
+document.getElementById('queue-close').addEventListener('click', () => {
+  document.getElementById('queue-panel').classList.remove('open');
+});
+document.getElementById('queue-sync').addEventListener('click', async () => {
+  document.getElementById('queue-panel').classList.remove('open');
+  await syncPendingRecords();
+});
+
+// ══════════════════════════════════════════
 // PLACE SEARCH
 // ══════════════════════════════════════════
 // Marker dropped on a geocoded result. Deliberately not a grave icon —
@@ -2066,9 +2171,7 @@ async function syncPendingRecords() {
 }
 
 // Manual sync trigger — tap the badge
-document.getElementById('sync-badge').addEventListener('click', () => {
-  if (navigator.onLine) syncPendingRecords();
-});
+document.getElementById('sync-badge').addEventListener('click', showQueuePanel);
 
 // Auto-sync when connection restored
 window.addEventListener('online', () => {

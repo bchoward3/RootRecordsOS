@@ -96,6 +96,15 @@
 
 <div id="sync-badge">⏳ Syncing offline records...</div>
 
+<div id="queue-panel">
+  <div id="queue-header">
+    <span id="queue-title">Pending records</span>
+    <button id="queue-close" title="Close">✕</button>
+  </div>
+  <div id="queue-list"></div>
+  <button class="rr-btn" id="queue-sync" style="margin:8px 12px 12px;width:calc(100% - 24px);">Sync now</button>
+</div>
+
 <!-- Navigation directions -->
 <div id="nav-panel">
   <div id="nav-header">
@@ -345,6 +354,17 @@
       <input type="checkbox" id="toggle-graves" checked style="width:18px;height:18px;"/>
       <span style="font-size:13px;color:var(--dark-brown);">⚰ Graves</span>
     </label>
+
+    <!-- Display mode -->
+    <div style="margin-top:16px;">
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Display</div>
+      <div id="theme-picker" style="display:flex;gap:6px;">
+        <button class="theme-opt active" data-theme="standard">Standard</button>
+        <button class="theme-opt" data-theme="day">Daylight</button>
+        <button class="theme-opt" data-theme="night">Night</button>
+      </div>
+      <p style="font-size:10px;color:var(--brown);line-height:1.4;margin-top:6px;">Daylight raises contrast and text size for bright sun. Night dims the interface.</p>
+    </div>
 
     <!-- Offline map section -->
     <div style="margin-top:16px;">
