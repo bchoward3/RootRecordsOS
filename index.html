@@ -135,6 +135,8 @@
   <div id="nav-steps"></div>
 </div>
 
+<button id="display-btn" title="Display &amp; offline">≡</button>
+
 <button id="geo-btn" title="Search places">🔍</button>
 
 <div id="geo-panel">
@@ -147,37 +149,14 @@
   <div id="geo-status" style="font-size:10px;color:var(--brown);margin-top:6px;"></div>
 </div>
 
-<button id="labels-btn" title="Label options">🏷</button>
 
 <!-- Label options panel -->
-<div id="label-panel">
-  <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Label Display</div>
-  <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
-    <input type="checkbox" id="labels-always"/> Always show labels
-  </label>
-  <div style="font-size:9px;color:var(--brown);margin-bottom:10px;line-height:1.4;">Off: labels appear on hover (desktop only).</div>
-  <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
-    <input type="radio" name="label-type" value="name" checked/> Name only
-  </label>
-  <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
-    <input type="radio" name="label-type" value="cemetery"/> Cemetery only
-  </label>
-  <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
-    <input type="radio" name="label-type" value="both"/> Name + Cemetery
-  </label>
-  <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold;">Min. Zoom to Show</div>
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-    <input type="range" id="label-zoom-threshold" min="8" max="16" value="12" style="flex:1;"/>
-    <span id="label-zoom-value" style="font-size:11px;color:var(--dark-brown);min-width:20px;">12</span>
-  </div>
-</div>
 
 <!-- Bottom screen toolbar -->
 <div id="toolbar">
   <button class="tool-btn" id="btn-add">＋ Add Grave</button>
   <button class="tool-btn secondary" id="btn-filter">⌕ Filter by Person</button>
   <button class="tool-btn secondary" id="btn-web">⬡ Family Web</button>
-  <button class="tool-btn secondary" id="btn-layers">≡ Layers</button>
 </div>
 
 <!-- One-time GPS tip banner for user -->
@@ -363,7 +342,7 @@
 <!-- Layer panel defined-->
 <div class="panel" id="layers-panel">
   <div class="panel-header">
-    <span class="panel-title">Layers &amp; Offline</span>
+    <span class="panel-title">Display &amp; Offline</span>
     <button class="panel-close" id="layers-close">✕</button>
   </div>
   <div class="panel-body">
@@ -376,6 +355,28 @@
       <span style="font-size:13px;color:var(--dark-brown);">⛰ Hillshade</span>
     </label>
     <p style="font-size:10px;color:var(--brown);line-height:1.4;margin-top:-4px;">Shaded relief over the basemap. For contour lines, switch to USGS Topo or OpenTopo.</p>
+
+      <div style="margin-top:16px;">
+    <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Grave Labels</div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+      <input type="checkbox" id="labels-always"/> Always show labels
+    </label>
+    <div style="font-size:9px;color:var(--brown);margin-bottom:10px;line-height:1.4;">Off: labels appear on hover (desktop only).</div>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+      <input type="radio" name="label-type" value="name" checked/> Name only
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+      <input type="radio" name="label-type" value="cemetery"/> Cemetery only
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--dark-brown);cursor:pointer;">
+      <input type="radio" name="label-type" value="both"/> Name + Cemetery
+    </label>
+    <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:bold;">Min. Zoom to Show</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <input type="range" id="label-zoom-threshold" min="8" max="16" value="12" style="flex:1;"/>
+      <span id="label-zoom-value" style="font-size:11px;color:var(--dark-brown);min-width:20px;">12</span>
+    </div>
+  </div>
 
     <!-- Display mode -->
     <div style="margin-top:16px;">

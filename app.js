@@ -387,7 +387,7 @@ document.getElementById('btn-filter').addEventListener('click', () => openPanel(
 document.getElementById('btn-web').addEventListener('click', () => {
   buildFullWeb();
 });
-document.getElementById('btn-layers').addEventListener('click', () => openPanel('layers-panel'));
+document.getElementById('display-btn').addEventListener('click', () => openPanel('layers-panel'));
 
 // Close buttons
 document.getElementById('add-close').addEventListener('click', () => { closePanel('add-panel'); resetAddPanel(); });
@@ -1775,13 +1775,8 @@ document.getElementById('geo-input').addEventListener('keydown', (e) => {
 // ══════════════════════════════════════════
 // LABELS
 // ══════════════════════════════════════════
-document.getElementById('labels-btn').addEventListener('click', () => {
-  const panel = document.getElementById('label-panel');
-  const open = panel.style.display === 'block';
-  panel.style.display = open ? 'none' : 'block';
-  document.getElementById('labels-btn').classList.toggle('active', !open);
-});
-
+// Label controls now live inside the Display & Offline panel, so there is
+// no separate toggle button to wire.
 document.getElementById('labels-always').addEventListener('change', (e) => {
   labelsPermanent = e.target.checked;
   refreshGraveLabels();
@@ -2419,7 +2414,7 @@ async function updateCacheSize() {
 }
 
 // Update cache size when layers panel opens
-document.getElementById('btn-layers').addEventListener('click', () => {
+document.getElementById('display-btn').addEventListener('click', () => {
   setTimeout(() => updateCacheSize(), 200);
 });
 
