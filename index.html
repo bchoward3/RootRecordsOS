@@ -37,6 +37,9 @@
   <!-- Person picker -->
   <script src="picker.js"></script>
 
+  <!-- Relationship calculator -->
+  <script src="relate.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -113,6 +116,40 @@
   <div id="compass-distance">—</div>
   <div id="compass-bearing">—</div>
   <div id="compass-note"></div>
+</div>
+
+<div id="anchor-panel">
+  <div class="rel-header">
+    <span>Set your family anchor</span>
+    <button id="anchor-close" title="Close">✕</button>
+  </div>
+  <div class="rel-body">
+    <p class="rel-note">Every record here is a deceased person, so you are not in the tree. Name your closest recorded ancestor and the app can work out the rest.</p>
+    <label class="rr-label">Closest recorded ancestor</label>
+    <input class="rr-input" id="anchor-input" placeholder="Start typing a name"/>
+    <label class="rr-label">They are your…</label>
+    <select class="rr-input" id="anchor-gens">
+      <option value="1">Father or mother</option>
+      <option value="2">Grandparent</option>
+      <option value="3">Great-grandparent</option>
+      <option value="4">2× great-grandparent</option>
+      <option value="5">3× great-grandparent</option>
+      <option value="6">4× great-grandparent</option>
+    </select>
+    <div id="anchor-status" class="rel-note"></div>
+    <button class="rr-btn" id="anchor-save">Save anchor</button>
+  </div>
+</div>
+
+<div id="relate-panel">
+  <div class="rel-header">
+    <span id="relate-title">Relationship</span>
+    <button id="relate-close" title="Close">✕</button>
+  </div>
+  <div class="rel-body" id="relate-body"></div>
+  <div class="rel-foot">
+    <button class="rr-btn secondary" id="relate-change-anchor">Change anchor</button>
+  </div>
 </div>
 
 <div id="queue-panel">
@@ -455,6 +492,7 @@
     <button class="fp-btn" id="fp-move" style="background:var(--mid);color:var(--cream);">⊕ Move</button>
     <button class="fp-btn" id="fp-delete" style="background:#555;color:white;">✕ Delete</button>
     <button class="fp-btn" id="fp-navigate">🧭 Navigate to this grave</button>
+    <button class="fp-btn" id="fp-relate">⚭ How am I related?</button>
   </div>
   <div id="fp-resize-handle"></div>
 </div>

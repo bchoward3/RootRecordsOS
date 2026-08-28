@@ -1212,6 +1212,7 @@ async function openFeaturePanel(grave) {
   document.getElementById('fp-move').onclick = () => startMoveMode(grave);
   document.getElementById('fp-delete').onclick = () => deleteGrave(grave);
   document.getElementById('fp-navigate').onclick = () => startNavigation(grave, coords);
+  document.getElementById('fp-relate').onclick = () => showRelationship(grave);
 }
 
 // ══════════════════════════════════════════
@@ -1642,6 +1643,209 @@ document.getElementById('nav-walk-btn').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && RRCompass.isRunning()) closeCompass();
 });
+
+// ══════════════════════════════════════════
+// HOW AM I RELATED?
+// ══════════════════════════════════════════
+// The user is never in the records — every record is a deceased person —
+// so the calculation is anchored on their closest recorded ancestor plus
+// how many generations above them that person sits. Set once, stored
+// locally, reused for every query.
+let relateSubject = null;
+
+function getAnchor() {
+  try {
+    const raw = localStorage.getItem('rr-anchor');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function setAnchor(a) {
+  try { localStorage.setItem('rr-anchor', JSON.stringify(a)); } catch (e) {}
+}
+
+function openAnchorPanel() {
+  const panel = document.getElementById('anchor-panel');
+  const input = document.getElementById('anchor-input');
+  const existing = getAnchor();
+  if (window.RRPicker) {
+    RRPicker.attach(input);
+    RRPicker.set(input, existing ? existing.name : '', existing ? existing.id : null);
+  }
+  document.getElementById('anchor-gens').value = existing ? existing.gens : '2';
+  document.getElementById('anchor-status').textContent = '';
+  document.getElementById('relate-panel').classList.remove('open');
+  panel.classList.add('open');
+}
+
+document.getElementById('anchor-close').addEventListener('click', () => {
+  document.getElementById('anchor-panel').classList.remove('open');
+});
+document.getElementById('relate-close').addEventListener('click', () => {
+  document.getElementById('relate-panel').classList.remove('open');
+});
+document.getElementById('relate-change-anchor').addEventListener('click', openAnchorPanel);
+
+document.getElementById('anchor-save').addEventListener('click', () => {
+  const input = document.getElementById('anchor-input');
+  const v = RRPicker.value(input);
+  const status = document.getElementById('anchor-status');
+  if (!v.id) {
+    status.textContent = v.name
+      ? 'That name has no record yet. The anchor must be someone with a grave in the app.'
+      : 'Choose an ancestor from the list.';
+    return;
+  }
+  setAnchor({ id: v.id, name: v.name, gens: parseInt(document.getElementById('anchor-gens').value, 10) });
+  document.getElementById('anchor-panel').classList.remove('open');
+  if (relateSubject) showRelationship(relateSubject);
+});
+
+async function showRelationship(grave) {
+  relateSubject = grave;
+  const anchor = getAnchor();
+  if (!anchor) { openAnchorPanel(); return; }
+
+  const panel = document.getElementById('relate-panel');
+  const body = document.getElementById('relate-body');
+  document.getElementById('relate-title').textContent = grave.person_name || 'Relationship';
+  body.innerHTML = '<div class="rel-note">Working it out…</div>';
+  panel.classList.add('open');
+
+  const { data: persons, error } = await sb.from('persons')
+    .select('id, name, dob, dod, gender, father, mother, father_id, mother_id');
+  if (error) {
+    body.innerHTML = '<div class="rel-note">Could not load records: ' + error.message + '</div>';
+    return;
+  }
+
+  const res = RRRelate.relate(persons || [], grave.person_id, anchor.id, anchor.gens);
+  renderRelationship(res, grave, anchor);
+}
+
+function years(p) {
+  if (!p) return '';
+  const a = p.dob ? String(p.dob).slice(0, 4) : '';
+  const b = p.dod ? String(p.dod).slice(0, 4) : '';
+  return a || b ? `${a}–${b}` : '';
+}
+
+function nodeHtml(p, cls) {
+  const y = years(p);
+  const ghost = p && p.real === false ? ' ghost' : '';
+  return `<div class="rel-node ${cls}${ghost}">
+      <div class="rel-node-name">${p ? p.name : 'Unknown'}</div>
+      ${y ? `<div class="rel-node-years">${y}</div>` : ''}
+    </div>`;
+}
+
+// Two chains rising to the shared ancestor. Not a general family tree —
+// the data is a graph with multiple paths, and this deliberately shows one.
+function treeHtml(path, anchor) {
+  const subjChain = path.subjectPath || [];
+  const userChain = path.userPath || [];
+  const shared = path.ancestor;
+
+  const col = (chain, endCls, label, extraTop) => {
+    // chain runs [self ... ancestor]; drop the ancestor, it is shown once
+    const rest = chain.slice(0, -1);
+    let html = '<div class="rel-col">';
+    rest.forEach((p, i) => {
+      html += nodeHtml(p, i === 0 ? endCls : '');
+      if (i < rest.length - 1) html += '<div class="rel-connector"></div>';
+    });
+    if (extraTop) html += '<div class="rel-connector"></div>' + extraTop;
+    html += '</div><div class="rel-col-label">' + label + '</div>';
+    return '<div>' + html + '</div>';
+  };
+
+  const youNode = `<div class="rel-node you"><div class="rel-node-name">You</div></div>`;
+  const anchorNote = anchor.gens > 1
+    ? `<div class="rel-connector"></div><div class="rel-node ghost"><div class="rel-node-name">${anchor.gens - 1} generation${anchor.gens - 1 === 1 ? '' : 's'} not recorded</div></div>`
+    : '';
+
+  return `<div class="rel-shared-wrap">
+      ${nodeHtml(shared, 'shared')}
+      <div class="rel-col-label">shared ancestor</div>
+      <div class="rel-shared-join"></div>
+      <div class="rel-tree">
+        ${col(subjChain, 'subject', 'this record', '')}
+        ${col(userChain, '', 'your line', anchorNote + '<div class="rel-connector"></div>' + youNode)}
+      </div>
+    </div>`;
+}
+
+function renderRelationship(res, grave, anchor) {
+  const body = document.getElementById('relate-body');
+  const name = grave.person_name || 'This person';
+
+  if (!res.ok) {
+    body.innerHTML = res.reason === 'anchor-missing'
+      ? '<div class="rel-note">Your anchor record no longer exists. Set a new one.</div>'
+      : '<div class="rel-note">This record has no person entry to trace from.</div>';
+    return;
+  }
+
+  if (!res.paths || res.paths.length === 0) {
+    const b = res.breaks || { subject: [], user: [] };
+    const line = (arr) => arr.length
+      ? arr.map(x => `${x.name} (${x.gen} generation${x.gen === 1 ? '' : 's'} back)`).join(', ')
+      : 'no recorded parents';
+    body.innerHTML = `
+      <div class="rel-answer">No documented relationship to <strong>${name}</strong>.</div>
+      <div class="rel-note">This means the records do not yet connect, not that there is no relation.</div>
+      <div class="rel-alt-head">Where the lines stop</div>
+      <div class="rel-alt">This record's line ends at: ${line(b.subject)}</div>
+      <div class="rel-alt">Your line ends at: ${line(b.user)}</div>
+      <div class="rel-note" style="margin-top:8px;">Finding a parent for either would likely connect them.</div>`;
+    return;
+  }
+
+  const best = res.paths[0];
+  const sharedNames = (best.ancestors || [best.ancestor]).map(a => a.name).join(' and ');
+
+  // When the subject is themselves the shared ancestor, the generic
+  // "through X, who is your Y and their Z" sentence collapses into
+  // nonsense — they are the connection.
+  const viaLine = best.subjectGen === 0
+    ? `Directly in your line, ${describeSide(best.userGen, 'your')}.`
+    : `Through ${sharedNames}, who is ${describeSide(best.userGen, 'your')} and ${describeSide(best.subjectGen, name + "'s")}.`;
+
+  let html = `<div class="rel-answer">
+      <strong>${name}</strong> is your <strong>${best.label}</strong>.
+      <div class="rel-via">${viaLine}</div>
+    </div>`;
+
+  html += treeHtml(best, anchor);
+
+  if (res.paths.length > 1) {
+    html += '<div class="rel-alt-head">Also related through</div>';
+    res.paths.slice(1).forEach(p => {
+      const nm = (p.ancestors || [p.ancestor]).map(a => a.name).join(' and ');
+      html += `<div class="rel-alt">${nm} — ${p.label}</div>`;
+    });
+  }
+  if (res.truncated) {
+    html += `<div class="rel-note">${res.truncated} more distant connection${res.truncated === 1 ? '' : 's'} not shown.</div>`;
+  }
+
+  html += `<div class="rel-note" style="margin-top:10px;">Anchor: ${anchor.name}, your ${anchorLabel(anchor.gens)}.</div>`;
+  body.innerHTML = html;
+}
+
+function anchorLabel(g) {
+  if (g === 1) return 'parent';
+  if (g === 2) return 'grandparent';
+  return (g - 2 === 1 ? 'great-' : 'great-'.repeat(g - 2)) + 'grandparent';
+}
+
+function describeSide(gen, who) {
+  if (gen === 0) return who === 'your' ? 'you' : who;
+  const poss = who === 'your' ? 'your' : who;
+  if (gen === 1) return `${poss} parent`;
+  if (gen === 2) return `${poss} grandparent`;
+  return `${poss} ` + 'great-'.repeat(gen - 2) + 'grandparent';
+}
 
 // ══════════════════════════════════════════
 // PERSON PICKERS
