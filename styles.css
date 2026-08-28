@@ -942,3 +942,21 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
   letter-spacing: 0.5px;
 }
 /* Read-only, so guests keep it alongside Trace and Navigate. */
+
+/* On a phone the relationship result deserves the whole screen — the tree
+   is tall and the map behind it is doing nothing. Desktop keeps the panel. */
+@media (max-width: 600px) {
+  #relate-panel {
+    left: 0; right: 0; top: 0; bottom: 0;
+    max-width: none; max-height: none;
+    border: none; border-radius: 0;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bot);
+  }
+  #relate-panel .rel-header { border-radius: 0; }
+  #relate-panel .rel-body { padding: 14px 14px 4px; }
+  #relate-panel .rel-answer { font-size: 19px; }
+  #relate-panel .rel-tree { margin-top: 18px; }
+  #relate-panel .rel-node { min-width: 124px; padding: 7px 9px; }
+  #relate-panel .rel-node-name { font-size: 12px; }
+}
