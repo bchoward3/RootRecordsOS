@@ -187,6 +187,7 @@ async function loadGraves() {
   const { data, error } = await sb.rpc('get_graves_geojson');
   if (error) { console.error('Load graves failed:', error); return; }
   currentGraves = data || [];
+  if (window.RRPicker) RRPicker.setSource(currentGraves);
   await loadPhotoIndex();
   renderGraves();
   populateCemeteryDropdown();
@@ -773,6 +774,8 @@ async function handleSaveGrave() {
     dod: document.getElementById('g-dod').value || null,
     father: document.getElementById('g-father').value.trim() || null,
     mother: document.getElementById('g-mother').value.trim() || null,
+    father_id: RRPicker.value(document.getElementById('g-father')).id,
+    mother_id: RRPicker.value(document.getElementById('g-mother')).id,
     cemetery_name: document.getElementById('g-cemetery').value.trim() || null,
     county: document.getElementById('g-county').value.trim() || null,
     state: document.getElementById('g-state').value.trim() || null,
@@ -817,6 +820,10 @@ async function handleSaveGrave() {
       dod: recordPayload.dod,
       father: recordPayload.father,
       mother: recordPayload.mother,
+      // Linked ids when the parent has a record; null when the name is
+      // only known as text.
+      father_id: recordPayload.father_id || null,
+      mother_id: recordPayload.mother_id || null,
     };
     const { data: person, error: pErr } = await sb.from('persons').insert(personData).select().single();
     if (pErr) throw pErr;
@@ -1250,6 +1257,24 @@ function openEditPanel(grave) {
     }
   });
 
+  // Parent pickers. Fields are rebuilt each time the panel opens, so these
+  // attach after construction. Existing links are loaded from persons —
+  // graves only carries the parent names as text.
+  if (window.RRPicker) {
+    const fatherInput = document.getElementById('ep-father');
+    const motherInput = document.getElementById('ep-mother');
+    RRPicker.attach(fatherInput, { excludeId: grave.person_id });
+    RRPicker.attach(motherInput, { excludeId: grave.person_id });
+    if (grave.person_id) {
+      sb.from('persons').select('father_id, mother_id').eq('id', grave.person_id).single()
+        .then(({ data }) => {
+          if (!data) return;
+          RRPicker.set(fatherInput, fatherInput.value, data.father_id);
+          RRPicker.set(motherInput, motherInput.value, data.mother_id);
+        });
+    }
+  }
+
   // Load existing attachments
   loadEditAttachments(grave.id);
   document.getElementById('edit-status').className = 'status';
@@ -1355,6 +1380,8 @@ document.getElementById('edit-save').addEventListener('click', async () => {
       name: updates.person_name,
       dob: updates.dob, dod: updates.dod,
       father: updates.father, mother: updates.mother,
+      father_id: RRPicker.value(document.getElementById('ep-father')).id,
+      mother_id: RRPicker.value(document.getElementById('ep-mother')).id,
     }).eq('id', editingGrave.person_id);
   }
 
@@ -1615,6 +1642,14 @@ document.getElementById('nav-walk-btn').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && RRCompass.isRunning()) closeCompass();
 });
+
+// ══════════════════════════════════════════
+// PERSON PICKERS
+// ══════════════════════════════════════════
+if (window.RRPicker) {
+  RRPicker.attach(document.getElementById('g-father'));
+  RRPicker.attach(document.getElementById('g-mother'));
+}
 
 // ══════════════════════════════════════════
 // DISPLAY THEME
@@ -2231,7 +2266,8 @@ async function syncPendingRecords() {
       // 1. Insert person
       const { data: person, error: pErr } = await sb.from('persons').insert({
         name: p.name, dob: p.dob, dod: p.dod,
-        father: p.father, mother: p.mother
+        father: p.father, mother: p.mother,
+        father_id: p.father_id || null, mother_id: p.mother_id || null
       }).select().single();
       if (pErr) throw pErr;
 

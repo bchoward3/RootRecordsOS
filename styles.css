@@ -821,3 +821,33 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   color: var(--dark-brown); font-family: 'Georgia', serif;
 }
+
+/* ── Person picker ── */
+.rr-picker-wrap { position: relative; }
+.rr-picker-badge {
+  position: absolute; right: 10px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px; letter-spacing: 0.5px;
+  pointer-events: none; font-family: 'Georgia', serif;
+}
+.rr-picker-badge.linked { color: #2d5a2d; }
+.rr-picker-badge.text-only { color: var(--brown); }
+.rr-picker-list {
+  position: absolute; left: 0; right: 0; top: 100%;
+  z-index: 1200; margin-top: 2px;
+  background: white; border: 1px solid var(--sepia);
+  border-radius: 4px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  max-height: 190px; overflow-y: auto;
+}
+.rr-picker-item {
+  padding: 9px 10px; min-height: 42px; cursor: pointer;
+  border-bottom: 1px solid #f0e8d8;
+}
+.rr-picker-item:last-child { border-bottom: none; }
+.rr-picker-item:hover { background: var(--parchment); }
+.rr-picker-name { font-size: 13px; color: var(--dark-brown); }
+.rr-picker-detail { font-size: 10px; color: var(--brown); margin-top: 1px; }
+.rr-picker-none {
+  padding: 9px 10px; font-size: 11px; color: var(--brown); line-height: 1.4;
+}
+.rr-picker-input { padding-right: 74px !important; }
