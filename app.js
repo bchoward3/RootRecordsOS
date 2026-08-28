@@ -1056,6 +1056,47 @@ document.addEventListener('keydown', (e) => {
 // ══════════════════════════════════════════
 // FEATURE PANEL
 // ══════════════════════════════════════════
+// The panel is position:fixed with no offsets in CSS — position is owned
+// entirely by JS. Without this it falls back to its static flow position,
+// which on a phone can be below the fold, so the panel appears to vanish.
+// Also clamps a dragged panel back into view after rotation or resize.
+function positionFeaturePanel(keepExisting) {
+  const panel = document.getElementById('feature-panel');
+  if (panel.style.display !== 'block') return;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = panel.offsetWidth || 260;
+  const h = panel.offsetHeight || 320;
+
+  const cs = getComputedStyle(document.documentElement);
+  const safeTop = parseInt(cs.getPropertyValue('--safe-top')) || 0;
+  const headerH = 48 + safeTop;
+  const minTop = headerH + 8;
+
+  let left = parseInt(panel.style.left);
+  let top = parseInt(panel.style.top);
+
+  // No position yet, or we're re-opening: start from a sane default.
+  if (!keepExisting || isNaN(left) || isNaN(top)) {
+    left = 12;
+    top = minTop + 4;
+  }
+
+  // Clamp so the panel is always reachable, however it got here.
+  const maxLeft = Math.max(8, vw - w - 8);
+  const maxTop = Math.max(minTop, vh - Math.min(h, 160) - 8);
+  panel.style.left = Math.min(Math.max(left, 8), maxLeft) + 'px';
+  panel.style.top = Math.min(Math.max(top, minTop), maxTop) + 'px';
+}
+
+// Rotation and resize change the viewport; a panel positioned for the old
+// one can land off-screen.
+window.addEventListener('resize', () => positionFeaturePanel(true));
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => positionFeaturePanel(true), 250);
+});
+
 async function openFeaturePanel(grave) {
   closeAllPanels();
   editingGrave = grave;
@@ -1149,6 +1190,7 @@ async function openFeaturePanel(grave) {
   }
 
   document.getElementById('feature-panel').style.display = 'block';
+  positionFeaturePanel();
 
   // Zoom to grave
   const coords = parseLocation(grave.location);
@@ -2088,6 +2130,7 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
     if (isDragging) {
       panel.style.left = `${panelStartX + e.clientX - dragStartX}px`;
       panel.style.top = `${panelStartY + e.clientY - dragStartY}px`;
+      positionFeaturePanel(true);
     }
     if (isResizing) {
       panel.style.width = `${Math.max(200, startW + e.clientX - resizeStartX)}px`;
@@ -2144,6 +2187,7 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
     const t = e.touches[0];
     panel.style.left = `${panelStartX + t.clientX - dragStartX}px`;
     panel.style.top = `${panelStartY + t.clientY - dragStartY}px`;
+    positionFeaturePanel(true);
     e.preventDefault();
   }, { passive: false });
 
