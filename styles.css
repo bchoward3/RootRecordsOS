@@ -384,6 +384,14 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 }
 #map.labels-hidden .grave-tooltip { display: none !important; }
 
+/*Selected grave — label stays up while its record is open, including
+  below the label zoom threshold, so the panel is always tied to a marker*/
+.grave-tooltip.selected {
+  color: #7a1f1f !important;
+  font-size: 13px !important;
+}
+#map.labels-hidden .grave-tooltip.selected { display: block !important; }
+
 /*Marker halo so coffins read on satellite/dark tiles*/
 .grave-marker {
   filter:
@@ -669,6 +677,7 @@ body.theme-day .grave-tooltip {
     -2px  2px 3px #fff, 2px  2px 3px #fff,
      0 0 6px #fff;
 }
+body.theme-day .grave-tooltip.selected { color: #7a1f1f !important; }
 body.theme-day .tool-btn { font-size: 12px; }
 
 /* Night — dimmed for low light */
@@ -689,6 +698,7 @@ body.theme-night .grave-tooltip {
     -1.5px -1.5px 2px rgba(0,0,0,0.95), 1.5px -1.5px 2px rgba(0,0,0,0.95),
     -1.5px  1.5px 2px rgba(0,0,0,0.95), 1.5px  1.5px 2px rgba(0,0,0,0.95);
 }
+body.theme-night .grave-tooltip.selected { color: #e8a87c !important; }
 body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
 
 .theme-opt {

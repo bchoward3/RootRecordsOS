@@ -236,6 +236,42 @@ function graveLabelText(g) {
   return name || cem;
 }
 
+// The grave whose record is currently open. Its label stays up regardless
+// of the label mode or zoom threshold, so there is always a visible tie
+// between the panel and the marker it belongs to.
+let selectedGraveId = null;
+
+// One binder for every path — creation, label refresh, and selection —
+// so a label can't behave differently depending on which one ran last.
+function bindGraveTooltip(layer, g) {
+  if (layer.getTooltip && layer.getTooltip()) layer.unbindTooltip();
+  const text = graveLabelText(g);
+  if (!text) return;
+  const isSelected = g.id === selectedGraveId;
+  layer.bindTooltip(text, {
+    permanent: labelsPermanent || isSelected,
+    direction: 'right',
+    offset: [8, -12],
+    className: 'grave-tooltip' + (isSelected ? ' selected' : ''),
+    opacity: 1
+  });
+}
+
+// Re-binds only the two markers that changed state rather than all of
+// them, so this stays cheap on a map with hundreds of graves.
+function setSelectedGrave(grave) {
+  const nextId = grave ? grave.id : null;
+  if (nextId === selectedGraveId) return;
+  const prevId = selectedGraveId;
+  selectedGraveId = nextId;
+  if (!window.gravesLayer && typeof gravesLayer === 'undefined') return;
+  gravesLayer.eachLayer(layer => {
+    const g = layer._graveRef;
+    if (!g) return;
+    if (g.id === prevId || g.id === nextId) bindGraveTooltip(layer, g);
+  });
+}
+
 function createGraveMarker(g, coords) {
   const icon = L.icon({
     iconUrl: 'grave.png',
@@ -244,16 +280,9 @@ function createGraveMarker(g, coords) {
     className: gravesWithPhotos.has(g.id) ? 'grave-marker' : 'grave-marker no-photo'
   });
   const marker = L.marker([coords.lat, coords.lng], { icon });
-  const text = graveLabelText(g);
-  if (text) {
-    marker.bindTooltip(text, {
-      permanent: labelsPermanent,
-      direction: 'right',
-      offset: [8, -12],
-      className: 'grave-tooltip',
-      opacity: 1
-    });
-  }
+  // Reads selectedGraveId, so a re-render after loadGraves keeps the
+  // selected label rather than dropping it.
+  bindGraveTooltip(marker, g);
   marker.on('click', () => openFeaturePanel(g));
   return marker;
 }
@@ -271,17 +300,7 @@ function refreshGraveLabels() {
     if (!layer.getTooltip) return;
     const g = layer._graveRef;
     if (!g) return;
-    layer.unbindTooltip();
-    const text = graveLabelText(g);
-    if (text) {
-      layer.bindTooltip(text, {
-        permanent: labelsPermanent,
-        direction: 'right',
-        offset: [8, -12],
-        className: 'grave-tooltip',
-        opacity: 1
-      });
-    }
+    bindGraveTooltip(layer, g);
   });
   updateLabelVisibility();
 }
@@ -375,6 +394,9 @@ function closePanel(id) { document.getElementById(id).classList.remove('open'); 
 function closeAllPanels() {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
   document.getElementById('feature-panel').style.display = 'none';
+  // openFeaturePanel calls this first and re-selects immediately after, so
+  // clearing here only affects the cases where nothing replaces it.
+  setSelectedGrave(null);
   hideNavPanel();
 }
 
@@ -394,7 +416,10 @@ document.getElementById('display-btn').addEventListener('click', () => openPanel
 document.getElementById('add-close').addEventListener('click', () => { closePanel('add-panel'); resetAddPanel(); });
 document.getElementById('filter-close').addEventListener('click', () => closePanel('filter-panel'));
 document.getElementById('layers-close').addEventListener('click', () => closePanel('layers-panel'));
-document.getElementById('fp-close').addEventListener('click', () => { document.getElementById('feature-panel').style.display = 'none'; });
+document.getElementById('fp-close').addEventListener('click', () => {
+  document.getElementById('feature-panel').style.display = 'none';
+  setSelectedGrave(null);
+});
 document.getElementById('nav-close').addEventListener('click', hideNavPanel);
 document.getElementById('nav-minimize').addEventListener('click', toggleNavMinimize);
 document.getElementById('edit-close').addEventListener('click', () => closePanel('edit-panel'));
@@ -1140,6 +1165,7 @@ window.addEventListener('orientationchange', () => {
 async function openFeaturePanel(grave) {
   closeAllPanels();
   editingGrave = grave;
+  setSelectedGrave(grave);
   // Guests see Trace and Navigate only — write actions are hidden by CSS.
   document.getElementById('feature-panel').classList.toggle('guest', !currentUser);
   document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
@@ -1769,6 +1795,7 @@ async function deleteGrave(grave) {
   }
 
   document.getElementById('feature-panel').style.display = 'none';
+  setSelectedGrave(null);
   hideNavPanel();
   await loadGraves();
 }
