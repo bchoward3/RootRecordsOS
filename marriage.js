@@ -169,6 +169,47 @@
       });
   }
 
+  /**
+   * preserveOnDelete(sb, personId, personName)
+   *
+   * Called before a person row is deleted. The foreign keys are asymmetric
+   * — person_a_id cascades, person_b_id sets null — so a plain delete
+   * would erase every marriage entered FROM this person, including from
+   * the surviving spouse's record, with nothing said about it. A marriage
+   * is a fact about two people; losing one of them should not unmake it.
+   *
+   * So: rows where this person is the b-side keep their text name, and
+   * rows where they are the a-side are handed to the spouse if the spouse
+   * has a record. Either way the marriage survives as a name-only entry,
+   * which is exactly what it now is.
+   */
+  function preserveOnDelete(sb, personId, personName) {
+    var name = (personName || '').toString().trim() || 'Unknown';
+
+    return load(sb, personId).then(function (list) {
+      return Promise.all(list.map(function (m) {
+        if (m.side === 'b') {
+          // The a-side record survives and the FK will null person_b_id.
+          // Write the departing name in first or the survivor's record
+          // would show an unnamed spouse.
+          return update(sb, m.id, { spouse_name: name });
+        }
+        // a-side rows cascade with the person. If the spouse has a record
+        // of their own, move the row onto it.
+        if (m.spouseId) {
+          return update(sb, m.id, {
+            person_a_id: m.spouseId,
+            person_b_id: null,
+            spouse_name: name
+          });
+        }
+        // Both sides are text-only — there is no record left to hold the
+        // row, so it goes with the person.
+        return Promise.resolve(null);
+      }));
+    });
+  }
+
   /* ---------- display ---------- */
 
   var REASON = { death: 'until death', divorce: 'divorced', unknown: 'end unknown' };
@@ -204,6 +245,7 @@
     add: add,
     update: update,
     remove: remove,
+    preserveOnDelete: preserveOnDelete,
     describe: describe,
     summarize: summarize
   };

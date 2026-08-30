@@ -1336,13 +1336,245 @@ function openEditPanel(grave) {
     }
   }
 
-  // Load existing attachments
+  // Marriages and attachments both save on their own, independently of
+  // the panel's Save Changes button.
+  renderEditMarriages(grave);
   loadEditAttachments(grave.id);
   document.getElementById('edit-status').className = 'status';
   document.getElementById('edit-save').textContent = 'Save Changes';
   document.getElementById('edit-save').disabled = false;
   openPanel('edit-panel');
 }
+
+// ══════════════════════════════════════════
+// MARRIAGES — EDIT PANEL
+// ══════════════════════════════════════════
+// Each marriage is its own row in its own table, so these save and delete
+// immediately rather than waiting on the panel's Save Changes button —
+// the same model the attachment list already uses. Mixing the two would
+// leave the panel half-saved whenever one half failed.
+
+let marriageRowSeq = 0;
+
+function marriageStatus(msg, type) {
+  const el = document.getElementById('edit-marriage-status');
+  el.textContent = msg || '';
+  el.style.color = type === 'error' ? 'var(--red)' : 'var(--brown)';
+}
+
+const MARRIAGE_REASONS = [
+  ['', 'Not recorded'],
+  ['death', 'Ended in death'],
+  ['divorce', 'Divorced'],
+  ['unknown', 'Ended — cause unknown']
+];
+
+async function renderEditMarriages(grave) {
+  const container = document.getElementById('edit-marriages');
+  const addBtn = document.getElementById('edit-add-marriage');
+  container.innerHTML = '';
+  marriageStatus('');
+
+  if (!grave.person_id) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:11px;color:var(--brown);';
+    msg.textContent = 'This grave has no linked person record, so a marriage cannot be attached to it.';
+    container.appendChild(msg);
+    addBtn.style.display = 'none';
+    return;
+  }
+
+  if (!navigator.onLine) {
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:11px;color:var(--brown);';
+    msg.textContent = 'Offline — marriages cannot be loaded or edited.';
+    container.appendChild(msg);
+    addBtn.style.display = 'none';
+    return;
+  }
+  addBtn.style.display = 'block';
+
+  let list = [];
+  try {
+    list = await RRMarriage.load(sb, grave.person_id);
+  } catch (e) {
+    marriageStatus('Could not load marriages: ' + e.message, 'error');
+    return;
+  }
+
+  if (!list.length) {
+    const none = document.createElement('div');
+    none.style.cssText = 'font-size:11px;color:var(--brown);';
+    none.textContent = 'No marriages recorded.';
+    container.appendChild(none);
+  }
+  list.forEach(m => container.appendChild(buildMarriageRow(grave, m)));
+}
+
+function buildMarriageRow(grave, m) {
+  const uid = 'mr' + (++marriageRowSeq);
+  const row = document.createElement('div');
+  row.style.cssText = 'border:1px solid var(--sepia);border-radius:4px;padding:8px;margin-bottom:8px;background:#fdfaf3;';
+
+  function label(text) {
+    const l = document.createElement('label');
+    l.className = 'rr-label';
+    l.textContent = text;
+    return l;
+  }
+
+  function textField(id, placeholder, value) {
+    const i = document.createElement('input');
+    i.type = 'text'; i.id = id; i.className = 'rr-input';
+    i.placeholder = placeholder;
+    i.value = value || '';
+    return i;
+  }
+
+  row.appendChild(label('Spouse'));
+
+  let spouseInput = null;
+  if (m && m.side === 'b') {
+    // This marriage was entered from the spouse's record, so the spouse
+    // here is the row's person_a. Changing it would mean rewriting which
+    // record owns the row — a delete and recreate, not an edit.
+    const fixed = document.createElement('div');
+    fixed.style.cssText = 'font-size:13px;color:var(--dark-brown);padding:4px 0;';
+    fixed.textContent = m.spouseName || 'Unnamed spouse';
+    row.appendChild(fixed);
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:10px;color:var(--brown);margin-bottom:6px;line-height:1.4;';
+    note.textContent = 'Entered from their record. Dates and outcome are editable here; the spouse is not.';
+    row.appendChild(note);
+  } else {
+    spouseInput = textField(uid + '-spouse', "Spouse's full name", m ? m.spouseName : '');
+    row.appendChild(spouseInput);
+    if (window.RRPicker) {
+      RRPicker.attach(spouseInput, { excludeId: grave.person_id });
+      RRPicker.set(spouseInput, m ? (m.spouseName || '') : '', m ? m.spouseId : null);
+    }
+  }
+
+  const dates = document.createElement('div');
+  dates.style.cssText = 'display:flex;gap:8px;';
+  const mCol = document.createElement('div');
+  mCol.style.cssText = 'flex:1;';
+  mCol.appendChild(label('Married'));
+  const mDate = textField(uid + '-mdate', 'YYYY-MM-DD', m ? m.marriage_date : '');
+  mCol.appendChild(mDate);
+  const eCol = document.createElement('div');
+  eCol.style.cssText = 'flex:1;';
+  eCol.appendChild(label('Ended'));
+  const eDate = textField(uid + '-edate', 'YYYY-MM-DD', m ? m.end_date : '');
+  eCol.appendChild(eDate);
+  dates.appendChild(mCol);
+  dates.appendChild(eCol);
+  row.appendChild(dates);
+
+  row.appendChild(label('Outcome'));
+  const reason = document.createElement('select');
+  reason.id = uid + '-reason';
+  reason.className = 'rr-input';
+  MARRIAGE_REASONS.forEach(([val, text]) => {
+    const o = document.createElement('option');
+    o.value = val; o.textContent = text;
+    reason.appendChild(o);
+  });
+  // Blank means nobody has looked. 'unknown' means someone looked and
+  // could not tell. Those are different research states, so they are
+  // separate options rather than one silence.
+  reason.value = (m && m.end_reason) || '';
+  row.appendChild(reason);
+
+  row.appendChild(label('Notes'));
+  const notes = textField(uid + '-notes', 'Source, uncertainty, anything worth keeping', m ? m.notes : '');
+  row.appendChild(notes);
+
+  const btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'rr-btn';
+  saveBtn.style.cssText = 'flex:2;margin-top:0;';
+  saveBtn.textContent = m ? 'Save marriage' : 'Add marriage';
+  saveBtn.addEventListener('click', async () => {
+    const picked = spouseInput && window.RRPicker
+      ? RRPicker.value(spouseInput)
+      : { name: spouseInput ? spouseInput.value.trim() : null, id: null };
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      if (m) {
+        const fields = {
+          marriage_date: mDate.value.trim() || null,
+          end_date: eDate.value.trim() || null,
+          end_reason: reason.value || null,
+          notes: notes.value.trim() || null
+        };
+        // Only an a-side row may change who the spouse is.
+        if (m.side === 'a') {
+          if (!picked.name && !picked.id) throw new Error('A marriage needs a spouse name.');
+          fields.person_b_id = picked.id || null;
+          fields.spouse_name = picked.name || null;
+        }
+        await RRMarriage.update(sb, m.id, fields);
+        marriageStatus('✓ Marriage updated');
+      } else {
+        await RRMarriage.add(sb, grave.person_id, {
+          id: picked.id,
+          name: picked.name,
+          marriage_date: mDate.value.trim() || null,
+          end_date: eDate.value.trim() || null,
+          end_reason: reason.value || null,
+          notes: notes.value.trim() || null
+        });
+        marriageStatus('✓ Marriage added');
+      }
+      await renderEditMarriages(grave);
+    } catch (e) {
+      marriageStatus(e.message, 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = m ? 'Save marriage' : 'Add marriage';
+    }
+  });
+  btns.appendChild(saveBtn);
+
+  const killBtn = document.createElement('button');
+  killBtn.className = 'rr-btn secondary';
+  killBtn.style.cssText = 'flex:1;margin-top:0;';
+  killBtn.textContent = m ? 'Remove' : 'Cancel';
+  killBtn.addEventListener('click', async () => {
+    if (!m) { row.remove(); marriageStatus(''); return; }
+    const who = m.spouseName || 'this spouse';
+    if (!confirm(`Remove the marriage to ${who}? It will disappear from both records.`)) return;
+    killBtn.disabled = true;
+    try {
+      await RRMarriage.remove(sb, m.id);
+      marriageStatus('Marriage removed');
+      await renderEditMarriages(grave);
+    } catch (e) {
+      marriageStatus('Could not remove: ' + e.message, 'error');
+      killBtn.disabled = false;
+    }
+  });
+  btns.appendChild(killBtn);
+
+  row.appendChild(btns);
+  return row;
+}
+
+document.getElementById('edit-add-marriage').addEventListener('click', () => {
+  if (!editingGrave || !editingGrave.person_id) return;
+  const container = document.getElementById('edit-marriages');
+  // Drop the "No marriages recorded" line the moment a row appears.
+  const placeholder = container.querySelector('div:not([style*="border"])');
+  if (placeholder && !placeholder.querySelector('input')) placeholder.remove();
+  const row = buildMarriageRow(editingGrave, null);
+  container.appendChild(row);
+  const input = row.querySelector('input');
+  if (input) input.focus();
+});
 
 async function loadEditAttachments(graveId) {
   const container = document.getElementById('edit-attachments');
@@ -1475,7 +1707,25 @@ function startMoveMode(grave) {
 
 async function deleteGrave(grave) {
   if (!currentUser) { showAuthModal(); return; }
-  if (!confirm(`Delete record for "${grave.person_name}"? This cannot be undone.`)) return;
+
+  // Read the marriages before asking, so the warning can say what else is
+  // about to change. Deleting a person silently rewrites their spouses'
+  // records too, and that should not be a surprise.
+  let marriages = [];
+  if (grave.person_id && window.RRMarriage && navigator.onLine) {
+    try {
+      marriages = await RRMarriage.load(sb, grave.person_id);
+    } catch (e) {
+      console.warn('[delete] could not read marriages:', e);
+    }
+  }
+  let marriageWarning = '';
+  if (marriages.length) {
+    const who = marriages.map(m => m.spouseName || 'an unnamed spouse').join(', ');
+    marriageWarning = `\n\n${marriages.length} marriage${marriages.length === 1 ? '' : 's'} ` +
+      `(${who}) will be kept on the spouse's record, but as a name-only entry.`;
+  }
+  if (!confirm(`Delete record for "${grave.person_name}"?${marriageWarning}\n\nThis cannot be undone.`)) return;
 
   // 1. Storage files first — once the attachment rows are gone we lose the paths.
   const { data: atts } = await sb.from('attachments')
@@ -1501,6 +1751,15 @@ async function deleteGrave(grave) {
       .eq('person_id', grave.person_id)
       .limit(1);
     if (!remaining || remaining.length === 0) {
+      // Must run before the delete — person_a_id cascades, so the rows
+      // would be gone before anything could be salvaged from them.
+      if (window.RRMarriage) {
+        try {
+          await RRMarriage.preserveOnDelete(sb, grave.person_id, grave.person_name);
+        } catch (e) {
+          console.warn('[delete] marriage preservation failed:', e);
+        }
+      }
       await sb.from('persons').delete().eq('id', grave.person_id);
     }
   }
