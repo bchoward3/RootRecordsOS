@@ -111,13 +111,15 @@
   /* ---------- write ---------- */
 
   /**
-   * add(sb, personId, spouse) -> Promise<row>
+   * add(sb, personId, spouse, personName) -> Promise<{ row, upgraded }>
    * spouse = { id, name, marriage_date, end_date, end_reason, notes }
+   * personName — the name of the person being edited, needed to recognise
+   *   a text-only row on the spouse's record that already names them.
    *
    * Rejects a spouse with neither an id nor a name — an empty marriage row
    * records nothing and cannot be told apart from a mistake later.
    */
-  function add(sb, personId, spouse) {
+  function add(sb, personId, spouse, personName) {
     spouse = spouse || {};
     if (!personId) return Promise.reject(new Error('This record has no person to attach a marriage to.'));
     if (!spouse.id && !norm(spouse.name)) {
@@ -127,14 +129,7 @@
       return Promise.reject(new Error('A person cannot be married to themselves.'));
     }
 
-    return load(sb, personId).then(function (existing) {
-      var dupe = existing.some(function (m) {
-        if (spouse.id && m.spouseId) return m.spouseId === spouse.id;
-        if (spouse.id || m.spouseId) return false;
-        return norm(m.spouseName) === norm(spouse.name);
-      });
-      if (dupe) throw new Error('That marriage is already recorded.');
-
+    function insert() {
       // person_a_id is NOT NULL, so the person being edited always takes
       // the a-side. A linked spouse goes in person_b_id; an unlinked one
       // is kept as text in the same way father/mother are.
@@ -148,8 +143,60 @@
         notes: spouse.notes || null
       }).select().single().then(function (res) {
         if (res.error) throw res.error;
-        return res.data;
+        return { row: res.data, upgraded: false };
       });
+    }
+
+    return load(sb, personId).then(function (existing) {
+      var dupe = existing.some(function (m) {
+        if (spouse.id && m.spouseId) return m.spouseId === spouse.id;
+        if (spouse.id || m.spouseId) return false;
+        return norm(m.spouseName) === norm(spouse.name);
+      });
+      if (dupe) throw new Error('That marriage is already recorded.');
+
+      // The spouse may already have recorded this marriage from their own
+      // side, as text, before this person had a record. That row is
+      // invisible to the check above — it holds no id pointing here — so
+      // inserting now would make a second row for one marriage. Find it
+      // and complete the link instead.
+      if (spouse.id) return upgradeExisting(sb, spouse.id, personId, personName, spouse);
+      return null;
+    }).then(function (upgraded) {
+      if (upgraded) return { row: upgraded, upgraded: true };
+      return insert();
+    });
+  }
+
+  // Look for a text-only marriage on the spouse's record that names this
+  // person. Matching is on the name as typed: two similar spellings are
+  // not assumed to be one person, because guessing that is exactly the
+  // kind of confident error this project would rather not make. A missed
+  // match leaves a visible duplicate, which is recoverable; a wrong match
+  // silently merges two marriages, which is not.
+  function upgradeExisting(sb, spouseId, personId, personName, spouse) {
+    if (!norm(personName)) return Promise.resolve(null);
+
+    return load(sb, spouseId).then(function (list) {
+      var match = null;
+      list.forEach(function (m) {
+        if (match) return;
+        if (m.side !== 'a') return;      // only rows the spouse owns
+        if (m.spouseId) return;          // already linked to someone
+        if (norm(m.spouseName) !== norm(personName)) return;
+        match = m;
+      });
+      if (!match) return null;
+
+      var fields = { person_b_id: personId };
+      // Fill blanks only. The existing row is the earlier research and
+      // should not be overwritten by whatever was typed just now.
+      if (!match.marriage_date && spouse.marriage_date) fields.marriage_date = spouse.marriage_date;
+      if (!match.end_date && spouse.end_date) fields.end_date = spouse.end_date;
+      if (!match.end_reason && spouse.end_reason) fields.end_reason = spouse.end_reason;
+      if (!match.notes && spouse.notes) fields.notes = spouse.notes;
+
+      return update(sb, match.id, fields).then(function () { return match; });
     });
   }
 

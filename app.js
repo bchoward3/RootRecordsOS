@@ -867,7 +867,7 @@ async function handleSaveGrave() {
           id: recordPayload.spouse_id,
           name: recordPayload.spouse,
           marriage_date: recordPayload.marriage_date
-        });
+        }, recordPayload.name);
       } catch (mErr) {
         console.warn('Marriage save failed:', mErr);
         marriageNote = ` — marriage not saved: ${mErr.message}`;
@@ -1521,15 +1521,19 @@ function buildMarriageRow(grave, m) {
         await RRMarriage.update(sb, m.id, fields);
         marriageStatus('✓ Marriage updated');
       } else {
-        await RRMarriage.add(sb, grave.person_id, {
+        const result = await RRMarriage.add(sb, grave.person_id, {
           id: picked.id,
           name: picked.name,
           marriage_date: mDate.value.trim() || null,
           end_date: eDate.value.trim() || null,
           end_reason: reason.value || null,
           notes: notes.value.trim() || null
-        });
-        marriageStatus('✓ Marriage added');
+        }, grave.person_name);
+        // Saying which happened matters: an upgrade means an existing row
+        // was completed, and anything already on it was left alone.
+        marriageStatus(result.upgraded
+          ? '✓ Linked to the marriage already recorded on their record'
+          : '✓ Marriage added');
       }
       await renderEditMarriages(grave);
     } catch (e) {
@@ -2815,7 +2819,7 @@ async function syncPendingRecords() {
         try {
           await RRMarriage.add(sb, person.id, {
             id: p.spouse_id, name: p.spouse, marriage_date: p.marriage_date
-          });
+          }, p.name);
         } catch (mErr) {
           console.warn('Queued marriage failed:', mErr);
         }
