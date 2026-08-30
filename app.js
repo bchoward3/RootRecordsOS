@@ -526,8 +526,16 @@ function resetAddPanel() {
   document.getElementById('audio-preview-wrap').style.display = 'none';
   document.getElementById('audio-timer').textContent = '0:00';
   document.getElementById('g-photo').value = '';
-  ['g-name','g-dob','g-dod','g-father','g-mother','g-cemetery','g-county','g-notes'].forEach(id => {
+  ['g-name','g-dob','g-dod','g-cemetery','g-county','g-notes','g-marriage-date'].forEach(id => {
     document.getElementById(id).value = '';
+  });
+  // Picker fields hold a person id in a data attribute. Clearing .value
+  // alone leaves that id attached, so the next record would inherit the
+  // previous one's linked parent or spouse under a blank name.
+  ['g-father','g-mother','g-spouse'].forEach(id => {
+    const el = document.getElementById(id);
+    if (window.RRPicker) RRPicker.set(el, '', null);
+    else el.value = '';
   });
   document.getElementById('g-state').value = 'KY';
   document.getElementById('add-status').className = 'status';
@@ -776,6 +784,11 @@ async function handleSaveGrave() {
     mother: document.getElementById('g-mother').value.trim() || null,
     father_id: RRPicker.value(document.getElementById('g-father')).id,
     mother_id: RRPicker.value(document.getElementById('g-mother')).id,
+    // Spouse rides along in the payload so an offline capture keeps it and
+    // syncPendingRecords can write the marriage row when the queue drains.
+    spouse: document.getElementById('g-spouse').value.trim() || null,
+    spouse_id: RRPicker.value(document.getElementById('g-spouse')).id,
+    marriage_date: document.getElementById('g-marriage-date').value.trim() || null,
     cemetery_name: document.getElementById('g-cemetery').value.trim() || null,
     county: document.getElementById('g-county').value.trim() || null,
     state: document.getElementById('g-state').value.trim() || null,
@@ -845,6 +858,22 @@ async function handleSaveGrave() {
     const { data: grave, error: gErr } = await sb.from('graves').insert(graveData).select().single();
     if (gErr) throw gErr;
 
+    // 2b. Marriage, if a spouse was entered. A failure here must not lose
+    // the grave that is already saved, so it is noted and carried past.
+    let marriageNote = '';
+    if (window.RRMarriage && (recordPayload.spouse || recordPayload.spouse_id)) {
+      try {
+        await RRMarriage.add(sb, person.id, {
+          id: recordPayload.spouse_id,
+          name: recordPayload.spouse,
+          marriage_date: recordPayload.marriage_date
+        });
+      } catch (mErr) {
+        console.warn('Marriage save failed:', mErr);
+        marriageNote = ` — marriage not saved: ${mErr.message}`;
+      }
+    }
+
     // 3. Upload compressed photo if captured
     if (capturedPhotoBlob) {
       try {
@@ -889,7 +918,11 @@ async function handleSaveGrave() {
     await loadGraves();
     if (addAnotherMode) {
       resetForNextGrave();
+      // resetForNextGrave writes its own success line, so the marriage
+      // warning has to be re-stated after it or it would be swallowed.
+      if (marriageNote) showStatus('add-status', `Grave saved${marriageNote}`, 'error');
     } else {
+      if (marriageNote) showStatus('add-status', `Grave saved${marriageNote}`, 'error');
       setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
     }
 
@@ -1130,6 +1163,33 @@ async function openFeaturePanel(grave) {
         <div class="fp-field-value">${v}</div>
       </div>`)
     .join('') || '<p style="color:var(--brown);font-size:12px;">No details recorded.</p>';
+
+  // Spouses. Read from BOTH sides of the marriages table — a marriage
+  // entered from the spouse's record sits in person_b_id and would be
+  // invisible here if only person_a_id were queried.
+  if (grave.person_id && window.RRMarriage && navigator.onLine) {
+    RRMarriage.load(sb, grave.person_id).then(ms => {
+      // The panel may have been closed or moved on while this was in flight.
+      if (!ms.length || editingGrave !== grave) return;
+      const body = document.getElementById('fp-body');
+      const placeholder = body.querySelector('p');
+      if (placeholder) placeholder.remove();
+      const block = document.createElement('div');
+      block.className = 'fp-field';
+      const label = document.createElement('div');
+      label.className = 'fp-field-label';
+      label.textContent = ms.length > 1 ? 'Spouses' : 'Spouse';
+      block.appendChild(label);
+      ms.forEach(m => {
+        const v = document.createElement('div');
+        v.className = 'fp-field-value';
+        // textContent, not innerHTML — these are names typed by a user.
+        v.textContent = RRMarriage.summarize(m) + (m.linked ? '' : ' · name only');
+        block.appendChild(v);
+      });
+      body.appendChild(block);
+    }).catch(e => console.warn('Marriage load failed:', e));
+  }
 
   // Load photo and audio
   const photoEl = document.getElementById('fp-photo');
@@ -1853,6 +1913,7 @@ function describeSide(gen, who) {
 if (window.RRPicker) {
   RRPicker.attach(document.getElementById('g-father'));
   RRPicker.attach(document.getElementById('g-mother'));
+  RRPicker.attach(document.getElementById('g-spouse'));
 }
 
 // ══════════════════════════════════════════
@@ -2487,6 +2548,19 @@ async function syncPendingRecords() {
         location: `POINT(${p.lng} ${p.lat})`
       }).select().single();
       if (gErr) throw gErr;
+
+      // 2b. Marriage captured in the field. A spouse_id chosen offline came
+      // from the already-loaded graves, so it still points at a real
+      // persons row by the time the queue drains.
+      if (window.RRMarriage && (p.spouse || p.spouse_id)) {
+        try {
+          await RRMarriage.add(sb, person.id, {
+            id: p.spouse_id, name: p.spouse, marriage_date: p.marriage_date
+          });
+        } catch (mErr) {
+          console.warn('Queued marriage failed:', mErr);
+        }
+      }
 
       // 3. Upload photo if queued
       if (item.photoId) {
