@@ -1193,8 +1193,28 @@ async function openFeaturePanel(grave) {
   // Spouses. Read from BOTH sides of the marriages table — a marriage
   // entered from the spouse's record sits in person_b_id and would be
   // invisible here if only person_a_id were queried.
-  if (grave.person_id && window.RRMarriage && navigator.onLine) {
-    RRMarriage.load(sb, grave.person_id).then(ms => {
+  if (grave.person_id && window.RRMarriage) {
+    if (!navigator.onLine) {
+      // Say so rather than rendering nothing. Standing at a stone with no
+      // signal, a blank section is indistinguishable from "no marriage
+      // recorded", and those are very different things to a researcher.
+      const off = document.createElement('div');
+      off.className = 'fp-field';
+      const ol = document.createElement('div');
+      ol.className = 'fp-field-label';
+      ol.textContent = 'Spouse';
+      const ov = document.createElement('div');
+      ov.className = 'fp-field-value';
+      ov.style.color = 'var(--brown)';
+      ov.textContent = 'Offline — not checked';
+      off.appendChild(ol);
+      off.appendChild(ov);
+      const body = document.getElementById('fp-body');
+      const ph = body.querySelector('p');
+      if (ph) ph.remove();
+      body.appendChild(off);
+    } else {
+      RRMarriage.load(sb, grave.person_id).then(ms => {
       // The panel may have been closed or moved on while this was in flight.
       if (!ms.length || editingGrave !== grave) return;
       const body = document.getElementById('fp-body');
@@ -1214,7 +1234,8 @@ async function openFeaturePanel(grave) {
         block.appendChild(v);
       });
       body.appendChild(block);
-    }).catch(e => console.warn('Marriage load failed:', e));
+      }).catch(e => console.warn('Marriage load failed:', e));
+    }
   }
 
   // Load photo and audio
@@ -1371,6 +1392,143 @@ function openEditPanel(grave) {
   document.getElementById('edit-save').disabled = false;
   openPanel('edit-panel');
 }
+
+// ══════════════════════════════════════════
+// UNLINKED SPOUSES
+// ══════════════════════════════════════════
+// Field capture writes spouse names as text, because the spouse usually
+// has no record at the moment the stone is read. Without something that
+// goes looking afterwards those rows stay text forever — the link only
+// happens if you happen to pick the right person from a dropdown weeks
+// later. This is the desk-side sweep that closes them.
+//
+// Nothing links automatically. A shared name in these counties is
+// evidence, not proof, so every suggestion is confirmed by a person.
+
+function linkStatus(msg, type) {
+  const el = document.getElementById('link-status');
+  el.textContent = msg || '';
+  el.style.color = type === 'error' ? 'var(--red)' : 'var(--brown)';
+}
+
+function personYears(p) {
+  const a = p.dob ? String(p.dob).slice(0, 4) : '';
+  const b = p.dod ? String(p.dod).slice(0, 4) : '';
+  return a || b ? `${a}–${b}` : 'no dates';
+}
+
+async function renderLinkPanel() {
+  const list = document.getElementById('link-list');
+  list.innerHTML = '';
+  linkStatus('');
+
+  if (!navigator.onLine) {
+    linkStatus('Offline — this needs a connection.');
+    return;
+  }
+
+  const loading = document.createElement('div');
+  loading.style.cssText = 'font-size:11px;color:var(--brown);';
+  loading.textContent = 'Checking records…';
+  list.appendChild(loading);
+
+  let items;
+  try {
+    items = await RRMarriage.findLinkable(sb);
+  } catch (e) {
+    list.innerHTML = '';
+    linkStatus('Could not check: ' + e.message, 'error');
+    return;
+  }
+
+  list.innerHTML = '';
+  if (!items.length) {
+    const none = document.createElement('div');
+    none.style.cssText = 'font-size:12px;color:var(--brown);';
+    none.textContent = 'Nothing to link. Every text-only marriage names someone with no record yet.';
+    list.appendChild(none);
+    return;
+  }
+
+  items.forEach(item => list.appendChild(buildLinkRow(item)));
+  linkStatus(`${items.length} possible link${items.length === 1 ? '' : 's'}.`);
+}
+
+function buildLinkRow(item) {
+  const row = document.createElement('div');
+  row.style.cssText = 'border:1px solid var(--sepia);border-radius:4px;padding:10px;margin-bottom:8px;background:#fdfaf3;';
+
+  const head = document.createElement('div');
+  head.style.cssText = 'font-size:13px;color:var(--dark-brown);font-family:Georgia,serif;margin-bottom:2px;';
+  head.textContent = item.personAName;
+  row.appendChild(head);
+
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-size:11px;color:var(--brown);margin-bottom:8px;';
+  const yr = item.marriage_date ? ' (m. ' + String(item.marriage_date).slice(0, 4) + ')' : '';
+  sub.textContent = 'recorded as married to “' + item.spouseName + '”' + yr;
+  row.appendChild(sub);
+
+  let chosen = item.candidates[0].id;
+
+  if (item.candidates.length === 1) {
+    const c = item.candidates[0];
+    const one = document.createElement('div');
+    one.style.cssText = 'font-size:12px;color:var(--dark-brown);margin-bottom:8px;';
+    one.textContent = 'Match: ' + c.name + ' · ' + personYears(c);
+    row.appendChild(one);
+  } else {
+    // Several people share the name. Offering a single button here would
+    // be picking one on the researcher's behalf, which is the mistake
+    // this whole panel exists to avoid.
+    const warn = document.createElement('div');
+    warn.style.cssText = 'font-size:11px;color:var(--red);margin-bottom:6px;';
+    warn.textContent = item.candidates.length + ' people share this name — choose carefully.';
+    row.appendChild(warn);
+
+    const sel = document.createElement('select');
+    sel.className = 'rr-input';
+    item.candidates.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.name + ' · ' + personYears(c);
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => { chosen = sel.value; });
+    row.appendChild(sel);
+  }
+
+  const btn = document.createElement('button');
+  btn.className = 'rr-btn';
+  btn.style.cssText = 'margin-top:6px;';
+  btn.textContent = '⚭ Link these records';
+  btn.addEventListener('click', async () => {
+    if (!currentUser) { showAuthModal(); return; }
+    btn.disabled = true;
+    btn.textContent = 'Linking…';
+    try {
+      await RRMarriage.link(sb, item.id, chosen);
+      row.remove();
+      linkStatus('✓ Linked. The marriage now shows on both records.');
+      // Re-check rather than just removing the row — linking one pair can
+      // rule out a suggestion elsewhere in the list.
+      await renderLinkPanel();
+    } catch (e) {
+      linkStatus('Could not link: ' + e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = '⚭ Link these records';
+    }
+  });
+  row.appendChild(btn);
+
+  return row;
+}
+
+document.getElementById('open-link-panel').addEventListener('click', () => {
+  openPanel('link-panel');
+  renderLinkPanel();
+});
+document.getElementById('link-close').addEventListener('click', () => closePanel('link-panel'));
 
 // ══════════════════════════════════════════
 // MARRIAGES — EDIT PANEL

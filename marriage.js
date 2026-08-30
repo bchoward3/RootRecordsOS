@@ -257,6 +257,80 @@
     });
   }
 
+  /* ---------- reconciliation ---------- */
+
+  /**
+   * findLinkable(sb) -> Promise<[suggestion]>
+   *
+   * Text-only marriages whose spouse_name now matches a person who has a
+   * record. Field capture writes names, not links — the spouse usually has
+   * no record yet at the moment the stone is read — so without something
+   * that goes looking afterwards, those rows stay text forever and the
+   * link only ever happens by chance.
+   *
+   * Matching is exact on the normalised name, the same rule used when
+   * upgrading during a save. Nothing is linked automatically: this returns
+   * candidates for a person to confirm, because a name match is evidence,
+   * not proof, and in these counties one name can be several people.
+   */
+  function findLinkable(sb) {
+    return Promise.all([
+      sb.from('marriages').select('id, person_a_id, person_b_id, spouse_name, marriage_date'),
+      sb.from('persons').select('id, name, dob, dod')
+    ]).then(function (res) {
+      if (res[0].error) throw res[0].error;
+      if (res[1].error) throw res[1].error;
+      var rows = res[0].data || [];
+      var persons = res[1].data || [];
+
+      var byName = {};
+      var nameById = {};
+      persons.forEach(function (p) {
+        nameById[p.id] = p.name;
+        var n = norm(p.name);
+        if (!n) return;
+        if (!byName[n]) byName[n] = [];
+        byName[n].push(p);
+      });
+
+      // Who is already linked to whom, so a suggestion that would create a
+      // second row for an existing marriage is never offered.
+      var linked = {};
+      rows.forEach(function (r) {
+        if (!r.person_b_id) return;
+        (linked[r.person_a_id] = linked[r.person_a_id] || {})[r.person_b_id] = true;
+        (linked[r.person_b_id] = linked[r.person_b_id] || {})[r.person_a_id] = true;
+      });
+
+      var out = [];
+      rows.forEach(function (r) {
+        if (r.person_b_id) return;
+        var n = norm(r.spouse_name);
+        if (!n) return;
+        var cands = (byName[n] || []).filter(function (p) {
+          if (p.id === r.person_a_id) return false; // no self-marriage
+          return !(linked[r.person_a_id] && linked[r.person_a_id][p.id]);
+        });
+        if (!cands.length) return;
+        out.push({
+          id: r.id,
+          personAId: r.person_a_id,
+          personAName: nameById[r.person_a_id] || 'Unknown',
+          spouseName: r.spouse_name,
+          marriage_date: r.marriage_date,
+          candidates: cands
+        });
+      });
+      return out;
+    });
+  }
+
+  // Complete a text-only marriage by pointing it at a person record. The
+  // text name stays on the row as the fallback it always was.
+  function link(sb, marriageId, personBId) {
+    return update(sb, marriageId, { person_b_id: personBId });
+  }
+
   /* ---------- display ---------- */
 
   var REASON = { death: 'until death', divorce: 'divorced', unknown: 'end unknown' };
@@ -293,6 +367,8 @@
     update: update,
     remove: remove,
     preserveOnDelete: preserveOnDelete,
+    findLinkable: findLinkable,
+    link: link,
     describe: describe,
     summarize: summarize
   };

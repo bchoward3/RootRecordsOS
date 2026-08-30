@@ -472,6 +472,32 @@
         🗑 Clear Offline Map
       </button>
     </div>
+
+    <div style="margin-top:16px;">
+      <div style="font-size:10px;color:var(--brown);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:bold;">Records</div>
+      <div style="font-size:11px;color:var(--brown);line-height:1.5;margin-bottom:8px;">
+        Marriages captured in the field are saved as plain names. This finds
+        the ones whose spouse now has a record of their own.
+      </div>
+      <button class="rr-btn secondary" id="open-link-panel">⚭ Review unlinked spouses</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spouse reconciliation panel -->
+<div class="panel" id="link-panel">
+  <div class="panel-header">
+    <span class="panel-title">Unlinked spouses</span>
+    <button class="panel-close" id="link-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <div style="font-size:11px;color:var(--brown);line-height:1.5;margin-bottom:10px;">
+      Each of these marriages names a spouse who now has their own record.
+      Names are matched exactly, so check the dates before linking — a
+      shared name is evidence, not proof.
+    </div>
+    <div id="link-list"></div>
+    <div id="link-status" style="font-size:11px;color:var(--brown);margin-top:8px;min-height:16px;"></div>
   </div>
 </div>
 
