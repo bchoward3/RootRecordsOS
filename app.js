@@ -1394,6 +1394,243 @@ function openEditPanel(grave) {
 }
 
 // ══════════════════════════════════════════
+// PEDIGREE CHART
+// ══════════════════════════════════════════
+// Ancestors only, laid out by ahnentafel arithmetic rather than any layout
+// algorithm — slot n's father is 2n, mother 2n+1, so every position is
+// fixed. SVG rather than HTML boxes because the connector lines are
+// cleaner and it prints and exports without extra work.
+
+const PED = { boxW: 158, boxH: 40, colGap: 46, rowH: 52, padX: 14, padY: 20 };
+
+function pedSvgEl(name, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.keys(attrs || {}).forEach(k => el.setAttribute(k, attrs[k]));
+  return el;
+}
+
+function pedTruncate(s, max) {
+  s = s || 'Unknown';
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function pedSlotPos(n, gen, totalH) {
+  const perGen = Math.pow(2, gen);
+  const i = n - perGen;
+  return {
+    x: PED.padX + gen * (PED.boxW + PED.colGap),
+    y: PED.padY + (i + 0.5) * (totalH / perGen) - PED.boxH / 2
+  };
+}
+
+function renderPedigree(result, rootGrave) {
+  const body = document.getElementById('pedigree-body');
+  const foot = document.getElementById('pedigree-foot');
+  body.innerHTML = '';
+  foot.innerHTML = '';
+
+  const gens = result.generations;
+  const rows = Math.pow(2, gens);
+  const totalH = rows * PED.rowH;
+  const width = PED.padX * 2 + (gens + 1) * PED.boxW + gens * PED.colGap;
+  const height = totalH + PED.padY * 2;
+
+  const svg = pedSvgEl('svg', {
+    width: width, height: height,
+    viewBox: `0 0 ${width} ${height}`,
+    class: 'ped-svg'
+  });
+
+  // Connectors first so boxes paint over them.
+  Object.keys(result.slots).forEach(key => {
+    const n = parseInt(key, 10);
+    const s = result.slots[n];
+    if (s.gen >= gens) return;
+    const cp = pedSlotPos(n, s.gen, totalH);
+    const cy = cp.y + PED.boxH / 2;
+    const midX = cp.x + PED.boxW + PED.colGap / 2;
+    [n * 2, n * 2 + 1].forEach(pn => {
+      const ps = result.slots[pn];
+      if (!ps) return;
+      const pp = pedSlotPos(pn, ps.gen, totalH);
+      const py = pp.y + PED.boxH / 2;
+      svg.appendChild(pedSvgEl('path', {
+        class: 'ped-line',
+        d: `M ${cp.x + PED.boxW} ${cy} H ${midX} V ${py} H ${pp.x}`
+      }));
+    });
+  });
+
+  // Boxes.
+  Object.keys(result.slots).forEach(key => {
+    const n = parseInt(key, 10);
+    const s = result.slots[n];
+    const pos = pedSlotPos(n, s.gen, totalH);
+    svg.appendChild(pedBox(s, pos, rootGrave));
+  });
+
+  // One rank of "unknown" placeholders past each known person, so the gaps
+  // read as research to do rather than as the chart simply ending.
+  Object.keys(result.slots).forEach(key => {
+    const n = parseInt(key, 10);
+    const s = result.slots[n];
+    if (s.gen >= gens) return;
+    [n * 2, n * 2 + 1].forEach(pn => {
+      if (result.slots[pn]) return;
+      const pos = pedSlotPos(pn, s.gen + 1, totalH);
+      const cp = pedSlotPos(n, s.gen, totalH);
+      const midX = cp.x + PED.boxW + PED.colGap / 2;
+      svg.appendChild(pedSvgEl('path', {
+        class: 'ped-line faint',
+        d: `M ${cp.x + PED.boxW} ${cp.y + PED.boxH / 2} H ${midX} V ${pos.y + PED.boxH / 2} H ${pos.x}`
+      }));
+      const g = pedSvgEl('g', { class: 'ped-box empty' });
+      g.appendChild(pedSvgEl('rect', {
+        x: pos.x, y: pos.y, width: PED.boxW, height: PED.boxH, rx: 3
+      }));
+      const t = pedSvgEl('text', {
+        x: pos.x + PED.boxW / 2, y: pos.y + PED.boxH / 2 + 4,
+        'text-anchor': 'middle', class: 'ped-empty-text'
+      });
+      t.textContent = pn % 2 === 0 ? 'father unknown' : 'mother unknown';
+      g.appendChild(t);
+      svg.appendChild(g);
+    });
+  });
+
+  body.appendChild(svg);
+  renderPedigreeFoot(result, foot);
+}
+
+function pedBox(s, pos, rootGrave) {
+  const node = s.node;
+  const isGhost = node.real === false;
+  const cls = ['ped-box'];
+  if (isGhost) cls.push('ghost');
+  if (s.repeatGroup) cls.push('repeat');
+  if (s.gen === 0) cls.push('root');
+
+  const g = pedSvgEl('g', { class: cls.join(' ') });
+  g.appendChild(pedSvgEl('rect', {
+    x: pos.x, y: pos.y, width: PED.boxW, height: PED.boxH, rx: 3
+  }));
+
+  const name = pedSvgEl('text', {
+    x: pos.x + 8, y: pos.y + 17, class: 'ped-name'
+  });
+  name.textContent = pedTruncate(node.name, 22);
+  g.appendChild(name);
+
+  const yr = years(node);
+  const sub = pedSvgEl('text', {
+    x: pos.x + 8, y: pos.y + 31, class: 'ped-years'
+  });
+  const label = RRPedigree.slotLabel(s.gen, node.gender);
+  sub.textContent = [yr, s.repeatGroup ? '↻' + s.repeatGroup : ''].filter(Boolean).join(' ') || label;
+  g.appendChild(sub);
+
+  const title = pedSvgEl('title', {});
+  title.textContent = node.name + (yr ? ' (' + yr + ')' : '') +
+    ' — ' + label + ', slot ' + s.ahnentafel +
+    (isGhost ? '\nName only — no record' : '') +
+    (s.repeatGroup ? '\nAppears in more than one slot' : '');
+  g.appendChild(title);
+
+  // Jump to the record where there is one to jump to.
+  if (!isGhost && s.key.indexOf('id:') === 0) {
+    const pid = s.key.slice(3);
+    const grave = currentGraves.find(x => x.person_id === pid);
+    if (grave) {
+      g.classList.add('clickable');
+      g.addEventListener('click', () => {
+        document.getElementById('pedigree-panel').classList.remove('open');
+        openFeaturePanel(grave);
+      });
+    }
+  }
+  return g;
+}
+
+function renderPedigreeFoot(result, foot) {
+  const bits = [];
+  bits.push(`${result.filled} of ${result.possible} slots filled`);
+
+  // The number that matters, and the reason this is stated rather than
+  // left for the reader to notice: a pedigree fills its slots by
+  // duplication, so slot count is not people count.
+  if (result.distinct !== result.filled) {
+    bits.push(`${result.distinct} distinct people`);
+  }
+  const line = document.createElement('div');
+  line.className = 'ped-stat';
+  line.textContent = bits.join(' · ');
+  foot.appendChild(line);
+
+  if (result.repeats.length) {
+    const r = document.createElement('div');
+    r.className = 'ped-note warn';
+    const who = result.repeats
+      .map(x => `${x.name} (↻${x.group}, ${x.slots.length} slots)`)
+      .join('; ');
+    r.textContent = 'Pedigree collapse — the same person fills more than one ' +
+      'slot, so this chart shows fewer ancestors than it has boxes: ' + who + '.';
+    foot.appendChild(r);
+  }
+
+  if (result.deadEnds.length) {
+    const d = document.createElement('div');
+    d.className = 'ped-note';
+    const ends = result.deadEnds.slice(0, 4)
+      .map(x => x.name + (x.real ? '' : ' (name only)'))
+      .join(', ');
+    d.textContent = 'Lines stop at: ' + ends +
+      (result.deadEnds.length > 4 ? ` and ${result.deadEnds.length - 4} more.` : '.');
+    foot.appendChild(d);
+  }
+}
+
+let pedigreeGrave = null;
+
+async function openPedigree(grave) {
+  if (!grave.person_id) {
+    alert('This grave has no linked person record, so it has no lineage to chart.');
+    return;
+  }
+  pedigreeGrave = grave;
+  const panel = document.getElementById('pedigree-panel');
+  const body = document.getElementById('pedigree-body');
+  document.getElementById('pedigree-title').textContent = grave.person_name || 'Pedigree';
+  body.innerHTML = '<div class="ped-note">Building chart…</div>';
+  document.getElementById('pedigree-foot').innerHTML = '';
+  panel.classList.add('open');
+
+  const { data: persons, error } = await sb.from('persons')
+    .select('id, name, dob, dod, gender, father, mother, father_id, mother_id');
+  if (error) {
+    body.innerHTML = '<div class="ped-note warn">Could not load records: ' + error.message + '</div>';
+    return;
+  }
+
+  const gens = parseInt(document.getElementById('pedigree-gens').value, 10);
+  const result = RRPedigree.build(persons || [], grave.person_id, gens);
+  if (!result.ok) {
+    body.innerHTML = '<div class="ped-note warn">Could not build a chart for this person.</div>';
+    return;
+  }
+  renderPedigree(result, grave);
+}
+
+document.getElementById('fp-pedigree').addEventListener('click', () => {
+  if (editingGrave) openPedigree(editingGrave);
+});
+document.getElementById('pedigree-close').addEventListener('click', () => {
+  document.getElementById('pedigree-panel').classList.remove('open');
+});
+document.getElementById('pedigree-gens').addEventListener('change', () => {
+  if (pedigreeGrave) openPedigree(pedigreeGrave);
+});
+
+// ══════════════════════════════════════════
 // UNLINKED SPOUSES
 // ══════════════════════════════════════════
 // Field capture writes spouse names as text, because the spouse usually

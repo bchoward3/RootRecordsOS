@@ -1,7 +1,7 @@
 // RootRecords Service Worker
 // Caches app shell + map tiles for offline use
 
-const CACHE_VERSION = 'rootrecords-v39';
+const CACHE_VERSION = 'rootrecords-v40';
 const TILE_CACHE = 'rootrecords-tiles-v1';
 
 // Core app files to cache on install
@@ -17,6 +17,7 @@ const APP_SHELL = [
   './picker.js',
   './relate.js',
   './marriage.js',
+  './pedigree.js',
   './grave.png',
   './manifest.json',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',

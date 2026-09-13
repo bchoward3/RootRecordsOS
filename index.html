@@ -1,21 +1,3 @@
-<!--
-  RootRecords — genealogy field mapping
-  Copyright (C) 2026 Your Legal Name
-
-  This program is free software: you can redistribute it and/or modify it
-  under the terms of the GNU Affero General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or (at
-  your option) any later version.
-
-  This program is distributed in the hope that it will be useful, but
-  WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero
-  General Public License for more details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with this program. If not, see <https://www.gnu.org/licenses/>.
--->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,6 +42,9 @@
 
   <!-- Marriage records -->
   <script src="marriage.js"></script>
+
+  <!-- Pedigree chart -->
+  <script src="pedigree.js"></script>
 
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
@@ -160,6 +145,20 @@
     <div id="anchor-status" class="rel-note"></div>
     <button class="rr-btn" id="anchor-save">Save anchor</button>
   </div>
+</div>
+
+<div id="pedigree-panel">
+  <div class="ped-header">
+    <span id="pedigree-title">Pedigree</span>
+    <select id="pedigree-gens" title="Generations">
+      <option value="3">3 generations</option>
+      <option value="4" selected>4 generations</option>
+      <option value="5">5 generations</option>
+    </select>
+    <button id="pedigree-close" title="Close">✕</button>
+  </div>
+  <div class="ped-body" id="pedigree-body"></div>
+  <div class="ped-foot" id="pedigree-foot"></div>
 </div>
 
 <div id="relate-panel">
@@ -556,6 +555,7 @@
     <button class="fp-btn" id="fp-delete" style="background:#555;color:white;">✕ Delete</button>
     <button class="fp-btn" id="fp-navigate">🧭 Navigate to this grave</button>
     <button class="fp-btn" id="fp-relate">⚭ How am I related?</button>
+    <button class="fp-btn" id="fp-pedigree">⛋ Pedigree chart</button>
   </div>
   <div id="fp-resize-handle"></div>
 </div>

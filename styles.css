@@ -698,6 +698,11 @@ body.theme-night .grave-tooltip {
     -1.5px -1.5px 2px rgba(0,0,0,0.95), 1.5px -1.5px 2px rgba(0,0,0,0.95),
     -1.5px  1.5px 2px rgba(0,0,0,0.95), 1.5px  1.5px 2px rgba(0,0,0,0.95);
 }
+body.theme-night .ped-box rect { fill: #23201a; }
+body.theme-night .ped-box.root rect { fill: #322b20; }
+body.theme-night .ped-name { fill: #d8ccb4; }
+body.theme-night .ped-years, body.theme-night .ped-empty-text { fill: #9c9080; }
+body.theme-night .ped-box.repeat rect { stroke: #e8a87c; }
 body.theme-night .grave-tooltip.selected { color: #e8a87c !important; }
 body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
 
@@ -894,6 +899,65 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
   font-size: 11px; color: var(--brown); line-height: 1.5; margin-bottom: 8px;
 }
 
+/*Pedigree chart — wider than the relationship panel because the chart
+  grows by 2^n horizontally, so it gets the screen and scrolls both ways*/
+#pedigree-panel {
+  position: fixed;
+  left: 12px; right: 12px; bottom: calc(70px + var(--safe-bot));
+  max-width: 1100px; margin: 0 auto;
+  z-index: 1004; display: none;
+  background: var(--parchment);
+  border: 1px solid var(--sepia); border-radius: 8px;
+  box-shadow: 0 4px 22px rgba(0,0,0,0.4);
+  font-family: 'Georgia', serif;
+  max-height: 80vh;
+}
+#pedigree-panel.open { display: flex; flex-direction: column; }
+.ped-header {
+  background: var(--dark-brown); color: var(--cream);
+  padding: 9px 12px; border-radius: 8px 8px 0 0;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; letter-spacing: 0.5px; flex: 0 0 auto;
+}
+#pedigree-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#pedigree-gens {
+  background: rgba(255,255,255,0.12); color: var(--cream);
+  border: 1px solid rgba(255,255,255,0.25); border-radius: 3px;
+  font-family: 'Georgia', serif; font-size: 11px; padding: 3px 4px;
+}
+#pedigree-gens option { color: #222; }
+.ped-header button {
+  background: none; border: none; color: var(--cream);
+  font-size: 18px; cursor: pointer;
+  min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ped-body { padding: 12px; overflow: auto; flex: 1 1 auto; }
+.ped-foot {
+  padding: 8px 12px 12px; border-top: 1px solid var(--sepia); flex: 0 0 auto;
+}
+.ped-stat { font-size: 11px; color: var(--dark-brown); margin-bottom: 4px; }
+.ped-note { font-size: 11px; color: var(--brown); line-height: 1.5; margin-bottom: 4px; }
+.ped-note.warn { color: #8a3d1a; }
+
+.ped-svg { display: block; }
+.ped-line { fill: none; stroke: var(--sepia); stroke-width: 1.4; }
+.ped-line.faint { stroke-dasharray: 2 4; opacity: 0.6; }
+.ped-box rect {
+  fill: var(--cream); stroke: var(--sepia); stroke-width: 1;
+}
+.ped-box.root rect { fill: #f2e4c8; stroke: var(--dark-brown); stroke-width: 1.6; }
+/*Name-only ancestors are drawn dashed for the same reason the walk-in
+  route leg is dashed: it is not the same kind of thing as a record*/
+.ped-box.ghost rect { fill: none; stroke-dasharray: 3 3; }
+.ped-box.repeat rect { stroke: #7a1f1f; stroke-width: 1.6; }
+.ped-box.empty rect { fill: none; stroke: var(--sepia); stroke-dasharray: 2 4; opacity: 0.7; }
+.ped-box.clickable { cursor: pointer; }
+.ped-box.clickable:hover rect { fill: #f6ecd6; }
+.ped-name { font-family: 'Georgia', serif; font-size: 12px; fill: var(--dark-brown); }
+.ped-years { font-family: 'Georgia', serif; font-size: 10px; fill: var(--brown); }
+.ped-empty-text { font-family: 'Georgia', serif; font-size: 10px; fill: var(--brown); opacity: 0.75; }
+
 /* Headline answer */
 .rel-answer {
   font-size: 17px; color: var(--dark-brown); line-height: 1.45;
@@ -969,4 +1033,12 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
   #relate-panel .rel-tree { margin-top: 18px; }
   #relate-panel .rel-node { min-width: 124px; padding: 7px 9px; }
   #relate-panel .rel-node-name { font-size: 12px; }
+  #pedigree-panel {
+    left: 0; right: 0; top: 0; bottom: 0;
+    max-width: none; max-height: none;
+    border: none; border-radius: 0;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bot);
+  }
+  #pedigree-panel .ped-header { border-radius: 0; }
 }
