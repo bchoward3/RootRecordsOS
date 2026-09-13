@@ -333,24 +333,37 @@
 
   /* ---------- display ---------- */
 
-  var REASON = { death: 'until death', divorce: 'divorced', unknown: 'end unknown' };
-
   /**
-   * describe(m) -> 'm. 1871 – 1902, divorced' or '' when nothing is dated.
+   * describe(m) -> 'm. 1871–1902, by divorce', 'ended 1927 at death', ''
+   *
+   * The wording has to shift with which fields exist. With only an end
+   * date, "ended 1927, until death" reads as two claims about one fact;
+   * with both dates, "m. 1871–1902 at death" reads as none. So the reason
+   * is phrased against whether a date already carries the word "ended".
    *
    * A null end_reason means nobody has looked. 'unknown' means someone
    * looked and could not tell. Those are different research states and the
    * display keeps them apart rather than flattening both to silence.
    */
   function describe(m) {
-    var bits = [];
     var my = year(m.marriage_date);
     var ey = year(m.end_date);
-    if (my && ey) bits.push('m. ' + my + '\u2013' + ey);
-    else if (my) bits.push('m. ' + my);
-    else if (ey) bits.push('ended ' + ey);
-    if (m.end_reason && REASON[m.end_reason]) bits.push(REASON[m.end_reason]);
-    return bits.join(', ');
+
+    var datePart = '';
+    if (my && ey) datePart = 'm. ' + my + '\u2013' + ey;
+    else if (my) datePart = 'm. ' + my;
+    else if (ey) datePart = 'ended ' + ey;
+
+    var reasonPart = '';
+    if (m.end_reason === 'death') reasonPart = ey ? 'at death' : 'ended at death';
+    else if (m.end_reason === 'divorce') reasonPart = ey ? 'by divorce' : 'divorced';
+    else if (m.end_reason === 'unknown') reasonPart = ey ? 'cause unknown' : 'ended, cause unknown';
+
+    if (!datePart) return reasonPart;
+    if (!reasonPart) return datePart;
+    // "ended 1927 at death" — no comma, the phrase is continuous.
+    var sep = (m.end_reason === 'death' && ey) ? ' ' : ', ';
+    return datePart + sep + reasonPart;
   }
 
   // One-line summary for the feature panel, e.g.

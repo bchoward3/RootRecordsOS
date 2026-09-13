@@ -146,6 +146,17 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
 .fp-field { margin-bottom: 6px; }
 .fp-field-label { font-size: 9px; color: var(--brown); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--sepia); padding-bottom: 1px; margin-bottom: 2px; }
 .fp-field-value { font-size: 11px; color: var(--dark-brown); }
+/*Marriage notes — indented under their spouse, clamped so a long note
+  does not push the attachment list off the panel. Click toggles.*/
+.fp-marriage-note {
+  font-size: 10px; color: var(--brown); line-height: 1.45;
+  padding-left: 10px; margin: 1px 0 4px;
+  border-left: 2px solid var(--sepia); cursor: pointer;
+}
+.fp-marriage-note.clamped {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .fp-actions { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; padding: 8px 12px; background: #ede3cc; border-top: 1px solid var(--sepia); }
 .fp-btn { padding: 6px; border: none; border-radius: 3px; font-size: 10px; cursor: pointer; font-family: 'Georgia', serif; min-height: 36px; }
 .fp-btn { padding: 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; min-height: 44px; }

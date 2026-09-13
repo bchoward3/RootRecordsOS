@@ -1232,6 +1232,20 @@ async function openFeaturePanel(grave) {
         // textContent, not innerHTML — these are names typed by a user.
         v.textContent = RRMarriage.summarize(m) + (m.linked ? '' : ' · name only');
         block.appendChild(v);
+        // Notes carry the research — who a spouse's parents were, why a
+        // date is uncertain. Clamped rather than shown whole, or two
+        // paragraph-length notes push the attachments off the panel.
+        if (m.notes) {
+          const n = document.createElement('div');
+          n.className = 'fp-marriage-note clamped';
+          n.textContent = m.notes;
+          n.title = 'Tap to expand';
+          n.addEventListener('click', () => {
+            n.classList.toggle('clamped');
+            n.title = n.classList.contains('clamped') ? 'Tap to expand' : 'Tap to collapse';
+          });
+          block.appendChild(n);
+        }
       });
       body.appendChild(block);
       }).catch(e => console.warn('Marriage load failed:', e));
