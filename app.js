@@ -3115,8 +3115,10 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
 
   // Drag — mouse
   panel.addEventListener('mousedown', (e) => {
-    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' ||
-        e.target.tagName === 'IMG' || e.target.tagName === 'AUDIO') return;
+    // Same exemption as touch. preventDefault on mousedown does not kill
+    // the click, so this was never broken with a mouse — but without it,
+    // clicking a link starts a drag that follows the cursor.
+    if (e.target === resizeHandle || isInteractive(e.target)) return;
     isDragging = true;
     dragStartX = e.clientX; dragStartY = e.clientY;
     panelStartX = parseInt(panel.style.left) || 0;
@@ -3169,10 +3171,20 @@ map.on('click', () => { document.getElementById('basemap-panel').style.display =
   });
   observer.observe(panel, { attributes: true, attributeFilter: ['style'] });
 
+  // Anything the user is meant to be able to tap. The touch drag below
+  // calls preventDefault, which suppresses the synthesized click — so a
+  // control missing from this list simply stops working on a phone while
+  // continuing to work with a mouse. Document links were lost this way.
+  const DRAG_EXEMPT = 'a, button, input, select, textarea, audio, img,' +
+    ' .fp-doc, .fp-thumb, .fp-marriage-note, .rr-btn, .fp-btn';
+
+  function isInteractive(target) {
+    return !!(target && target.closest && target.closest(DRAG_EXEMPT));
+  }
+
   // Drag — touch
   panel.addEventListener('touchstart', (e) => {
-    if (e.target === resizeHandle || e.target.tagName === 'BUTTON' ||
-        e.target.tagName === 'IMG' || e.target.tagName === 'AUDIO') return;
+    if (e.target === resizeHandle || isInteractive(e.target)) return;
     const t = e.touches[0];
     isDragging = true;
     dragStartX = t.clientX; dragStartY = t.clientY;
