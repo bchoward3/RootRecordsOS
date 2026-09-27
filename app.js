@@ -885,7 +885,7 @@ async function handleSaveGrave() {
 
     // 2b. Marriage, if a spouse was entered. A failure here must not lose
     // the grave that is already saved, so it is noted and carried past.
-    let marriageNote = '';
+    let saveWarning = '';
     if (window.RRMarriage && (recordPayload.spouse || recordPayload.spouse_id)) {
       try {
         await RRMarriage.add(sb, person.id, {
@@ -895,31 +895,40 @@ async function handleSaveGrave() {
         }, recordPayload.name);
       } catch (mErr) {
         console.warn('Marriage save failed:', mErr);
-        marriageNote = ` — marriage not saved: ${mErr.message}`;
+        saveWarning = ` — marriage not saved: ${mErr.message}`;
       }
     }
 
-    // 3. Upload compressed photo if captured
+    // 3 & 4. Media. Failures are reported, not swallowed — the blob is
+    // still in memory at this point, so knowing now is the difference
+    // between re-saving and re-visiting the cemetery.
+    const mediaFailures = [];
+
     if (capturedPhotoBlob) {
       try {
         const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
         const { error: upErr } = await sb.storage.from('graves-media').upload(path, capturedPhotoBlob, {
           contentType: 'image/jpeg'
         });
-        if (!upErr) {
-          await sb.from('attachments').insert({
-            grave_id: grave.id, person_id: person.id,
-            file_name: 'headstone.jpg', file_path: path,
-            file_type: 'photo', file_size: capturedPhotoBlob.size,
-            mime_type: 'image/jpeg'
-          });
+        if (upErr) throw upErr;
+        const { error: insErr } = await sb.from('attachments').insert({
+          grave_id: grave.id, person_id: person.id,
+          file_name: 'headstone.jpg', file_path: path,
+          file_type: 'photo', file_size: capturedPhotoBlob.size,
+          mime_type: 'image/jpeg'
+        });
+        // An upload with no attachment row leaves the file orphaned in
+        // Storage and the record looking photo-less, so undo it.
+        if (insErr) {
+          await sb.storage.from('graves-media').remove([path]).catch(() => {});
+          throw insErr;
         }
       } catch (upErr) {
         console.warn('Photo upload failed:', upErr);
+        mediaFailures.push('photo');
       }
     }
 
-    // 4. Upload audio note if recorded
     if (capturedAudioBlob) {
       try {
         const ext = capturedAudioBlob.type.includes('webm') ? 'webm' : 'mp4';
@@ -927,17 +936,26 @@ async function handleSaveGrave() {
         const { error: audErr } = await sb.storage.from('graves-media').upload(audioPath, capturedAudioBlob, {
           contentType: capturedAudioBlob.type
         });
-        if (!audErr) {
-          await sb.from('attachments').insert({
-            grave_id: grave.id, person_id: person.id,
-            file_name: `note.${ext}`, file_path: audioPath,
-            file_type: 'audio', file_size: capturedAudioBlob.size,
-            mime_type: capturedAudioBlob.type
-          });
+        if (audErr) throw audErr;
+        const { error: insErr } = await sb.from('attachments').insert({
+          grave_id: grave.id, person_id: person.id,
+          file_name: `note.${ext}`, file_path: audioPath,
+          file_type: 'audio', file_size: capturedAudioBlob.size,
+          mime_type: capturedAudioBlob.type
+        });
+        if (insErr) {
+          await sb.storage.from('graves-media').remove([audioPath]).catch(() => {});
+          throw insErr;
         }
       } catch (audErr) {
         console.warn('Audio upload failed:', audErr);
+        mediaFailures.push('audio note');
       }
+    }
+
+    if (mediaFailures.length) {
+      saveWarning = ` — ${mediaFailures.join(' and ')} did NOT upload; ` +
+        'edit the record and attach again before leaving the site' + saveWarning;
     }
     btn.textContent = 'Saved!';
     await loadGraves();
@@ -945,9 +963,16 @@ async function handleSaveGrave() {
       resetForNextGrave();
       // resetForNextGrave writes its own success line, so the marriage
       // warning has to be re-stated after it or it would be swallowed.
-      if (marriageNote) showStatus('add-status', `Grave saved${marriageNote}`, 'error');
+      if (saveWarning) showStatus('add-status', `Grave saved${saveWarning}`, 'error');
+    } else if (saveWarning) {
+      // Leave the panel open. A warning that something did not upload is
+      // useless if it disappears with the panel 1.8 seconds later, while
+      // the person is still standing at the grave.
+      showStatus('add-status', `Grave saved${saveWarning}`, 'error');
+      btn.textContent = 'Save Record';
+      btn.disabled = false;
+      btnAnother.disabled = false;
     } else {
-      if (marriageNote) showStatus('add-status', `Grave saved${marriageNote}`, 'error');
       setTimeout(() => { closePanel('add-panel'); resetAddPanel(); }, 1800);
     }
 
@@ -3223,6 +3248,46 @@ async function updateSyncBadge() {
   } catch (e) { /* db not ready */ }
 }
 
+// Upload one queued blob and record it as an attachment.
+//
+// Returns 'ok', 'lost' (the blob is no longer in IndexedDB, so retrying
+// can never succeed), or 'failed' (worth another attempt). Every error is
+// returned rather than swallowed — the previous version skipped a failed
+// upload silently and still reported the record as synced, which lost two
+// headstone photos before the amber halos gave it away.
+async function uploadQueuedMedia(kind, blobId, graveId, personId) {
+  const blob = await window.RRDb.getMediaBlob(blobId);
+  if (!blob) return 'lost';
+
+  const isPhoto = kind === 'photo';
+  const ext = isPhoto ? 'jpg' : (blob.type.includes('webm') ? 'webm' : 'mp4');
+  const name = isPhoto ? 'headstone.jpg' : `note.${ext}`;
+  const path = `${isPhoto ? 'photos' : 'audio'}/${graveId}/${Date.now()}_${name}`;
+  const mime = isPhoto ? 'image/jpeg' : blob.type;
+
+  const { error: upErr } = await sb.storage.from('graves-media')
+    .upload(path, blob, { contentType: mime });
+  if (upErr) {
+    console.warn(`[sync] ${kind} upload failed:`, upErr.message);
+    return 'failed';
+  }
+
+  // The insert result was never checked before. An upload that lands with
+  // no attachment row is worse than a failed upload: the file is in
+  // Storage with nothing pointing at it, and the record looks photo-less.
+  const { error: insErr } = await sb.from('attachments').insert({
+    grave_id: graveId, person_id: personId,
+    file_name: name, file_path: path,
+    file_type: kind, file_size: blob.size, mime_type: mime
+  });
+  if (insErr) {
+    console.warn(`[sync] ${kind} attachment insert failed:`, insErr.message);
+    await sb.storage.from('graves-media').remove([path]).catch(() => {});
+    return 'failed';
+  }
+  return 'ok';
+}
+
 async function syncPendingRecords() {
   if (!navigator.onLine || !currentUser) return;
 
@@ -3233,86 +3298,89 @@ async function syncPendingRecords() {
   badge.textContent = `⏳ Syncing ${pending.length} record${pending.length === 1 ? '' : 's'}...`;
   badge.style.display = 'block';
 
-  let synced = 0, failed = 0;
+  let synced = 0, failed = 0, mediaPending = 0, mediaLost = 0;
 
   for (const item of pending) {
     try {
       const p = item.payload;
+      let personId = item.personId || null;
+      let graveId = item.graveId || null;
 
-      // 1. Insert person
-      const { data: person, error: pErr } = await sb.from('persons').insert({
-        name: p.name, dob: p.dob, dod: p.dod,
-        father: p.father, mother: p.mother,
-        father_id: p.father_id || null, mother_id: p.mother_id || null
-      }).select().single();
-      if (pErr) throw pErr;
+      // A record that already has a grave id got through the inserts on an
+      // earlier attempt and is back only for its media. Re-running the
+      // inserts would duplicate the grave.
+      if (!graveId) {
+        const { data: person, error: pErr } = await sb.from('persons').insert({
+          name: p.name, dob: p.dob, dod: p.dod,
+          father: p.father, mother: p.mother,
+          father_id: p.father_id || null, mother_id: p.mother_id || null
+        }).select().single();
+        if (pErr) throw pErr;
 
-      // 2. Insert grave
-      const { data: grave, error: gErr } = await sb.from('graves').insert({
-        person_id: person.id,
-        person_name: p.name,
-        dob: p.dob, dod: p.dod,
-        father: p.father, mother: p.mother,
-        cemetery_name: p.cemetery_name,
-        county: p.county, state: p.state,
-        description: p.description,
-        location: `POINT(${p.lng} ${p.lat})`
-      }).select().single();
-      if (gErr) throw gErr;
+        const { data: grave, error: gErr } = await sb.from('graves').insert({
+          person_id: person.id,
+          person_name: p.name,
+          dob: p.dob, dod: p.dod,
+          father: p.father, mother: p.mother,
+          cemetery_name: p.cemetery_name,
+          county: p.county, state: p.state,
+          description: p.description,
+          location: `POINT(${p.lng} ${p.lat})`
+        }).select().single();
+        if (gErr) throw gErr;
 
-      // 2b. Marriage captured in the field. A spouse_id chosen offline came
-      // from the already-loaded graves, so it still points at a real
-      // persons row by the time the queue drains.
-      if (window.RRMarriage && (p.spouse || p.spouse_id)) {
-        try {
-          await RRMarriage.add(sb, person.id, {
-            id: p.spouse_id, name: p.spouse, marriage_date: p.marriage_date
-          }, p.name);
-        } catch (mErr) {
-          console.warn('Queued marriage failed:', mErr);
-        }
-      }
+        personId = person.id;
+        graveId = grave.id;
 
-      // 3. Upload photo if queued
-      if (item.photoId) {
-        const photoBlob = await window.RRDb.getMediaBlob(item.photoId);
-        if (photoBlob) {
-          const path = `photos/${grave.id}/${Date.now()}_headstone.jpg`;
-          const { error: upErr } = await sb.storage.from('graves-media')
-            .upload(path, photoBlob, { contentType: 'image/jpeg' });
-          if (!upErr) {
-            await sb.from('attachments').insert({
-              grave_id: grave.id, person_id: person.id,
-              file_name: 'headstone.jpg', file_path: path,
-              file_type: 'photo', file_size: photoBlob.size,
-              mime_type: 'image/jpeg'
-            });
+        // Written back before any upload is attempted. If the phone dies
+        // mid-photo, the next sync finds the grave id here rather than
+        // inserting the grave a second time.
+        await window.RRDb.updateRecord(item.id, { personId, graveId });
+
+        // Marriage captured in the field. A spouse_id chosen offline came
+        // from the already-loaded graves, so it still points at a real
+        // persons row by the time the queue drains.
+        if (window.RRMarriage && (p.spouse || p.spouse_id)) {
+          try {
+            await RRMarriage.add(sb, personId, {
+              id: p.spouse_id, name: p.spouse, marriage_date: p.marriage_date
+            }, p.name);
+          } catch (mErr) {
+            console.warn('Queued marriage failed:', mErr);
           }
         }
       }
 
-      // 4. Upload audio if queued
-      if (item.audioId) {
-        const audioBlob = await window.RRDb.getMediaBlob(item.audioId);
-        if (audioBlob) {
-          const ext = audioBlob.type.includes('webm') ? 'webm' : 'mp4';
-          const path = `audio/${grave.id}/${Date.now()}_note.${ext}`;
-          const { error: audErr } = await sb.storage.from('graves-media')
-            .upload(path, audioBlob, { contentType: audioBlob.type });
-          if (!audErr) {
-            await sb.from('attachments').insert({
-              grave_id: grave.id, person_id: person.id,
-              file_name: `note.${ext}`, file_path: path,
-              file_type: 'audio', file_size: audioBlob.size,
-              mime_type: audioBlob.type
-            });
-          }
+      let photoId = item.photoId;
+      let audioId = item.audioId;
+      let stillWaiting = false;
+
+      for (const [kind, id] of [['photo', photoId], ['audio', audioId]]) {
+        if (!id) continue;
+        const res = await uploadQueuedMedia(kind, id, graveId, personId);
+        if (res === 'ok') {
+          // Drop this blob now; a sibling failure must not re-upload it.
+          await window.RRDb.deleteMedia(id);
+          if (kind === 'photo') photoId = null; else audioId = null;
+        } else if (res === 'lost') {
+          // The blob is gone from IndexedDB. Retrying forever would just
+          // hide the loss, so clear it and say so.
+          mediaLost++;
+          if (kind === 'photo') photoId = null; else audioId = null;
+        } else {
+          stillWaiting = true;
         }
       }
 
-      // 5. Remove from queue
-      await window.RRDb.markSynced(item.id, item.photoId, item.audioId);
-      synced++;
+      if (stillWaiting) {
+        // The grave is saved; its media is not. Keep the queue entry and
+        // the surviving blobs so the next sync can finish the job.
+        await window.RRDb.updateRecord(item.id, { photoId, audioId });
+        mediaPending++;
+      } else {
+        await window.RRDb.markSynced(item.id, photoId, audioId);
+        synced++;
+      }
 
     } catch (err) {
       console.warn('Sync failed for record:', err);
@@ -3323,12 +3391,19 @@ async function syncPendingRecords() {
   // Refresh map and update badge
   await loadGraves();
 
-  if (failed === 0) {
-    badge.textContent = `✓ ${synced} record${synced === 1 ? '' : 's'} synced`;
-    setTimeout(() => { badge.style.display = 'none'; }, 3000);
+  // Report every outcome. "Synced" previously covered records whose photo
+  // never uploaded, which is how the loss went unnoticed until the desk.
+  const parts = [];
+  if (synced) parts.push(`✓ ${synced} synced`);
+  if (mediaPending) parts.push(`⏳ ${mediaPending} awaiting media`);
+  if (mediaLost) parts.push(`⚠ ${mediaLost} media lost`);
+  if (failed) parts.push(`⚠ ${failed} failed`);
+
+  badge.textContent = parts.join(' · ') || '✓ Synced';
+  if (failed || mediaPending || mediaLost) {
+    setTimeout(() => updateSyncBadge(), 5000);
   } else {
-    badge.textContent = `⚠ ${synced} synced, ${failed} failed`;
-    setTimeout(() => updateSyncBadge(), 4000);
+    setTimeout(() => { badge.style.display = 'none'; }, 3000);
   }
 }
 

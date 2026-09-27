@@ -124,6 +124,43 @@ async function markSynced(queueId, photoId, audioId) {
   }
 }
 
+// Merge fields into a queued record, in place.
+//
+// This is what makes a media-only retry possible. Once a grave has been
+// inserted, its id is written back here immediately — so if the photo
+// upload then fails, the next sync knows to upload the photo against the
+// existing grave rather than inserting a second one.
+async function updateRecord(queueId, changes) {
+  const database = await openDB();
+  const tx = database.transaction(STORE_QUEUE, 'readwrite');
+  const store = tx.objectStore(STORE_QUEUE);
+  return new Promise((resolve, reject) => {
+    const getReq = store.get(queueId);
+    getReq.onsuccess = () => {
+      const rec = getReq.result;
+      if (!rec) { resolve(false); return; }
+      Object.assign(rec, changes);
+      const putReq = store.put(rec);
+      putReq.onsuccess = () => resolve(true);
+      putReq.onerror = () => reject(putReq.error);
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+// Delete one media blob. Used when its upload has landed but a sibling
+// blob on the same record has not, so the queue entry has to survive.
+async function deleteMedia(id) {
+  if (!id) return;
+  const database = await openDB();
+  const tx = database.transaction(STORE_MEDIA, 'readwrite');
+  return new Promise((resolve, reject) => {
+    const req = tx.objectStore(STORE_MEDIA).delete(id);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // ── Count pending records ──
 async function getPendingCount() {
   const pending = await getPendingRecords();
@@ -145,6 +182,8 @@ window.RRDb = {
   getPendingRecords,
   getMediaBlob,
   markSynced,
+  updateRecord,
+  deleteMedia,
   getPendingCount,
   clearQueue
 };
