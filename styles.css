@@ -434,6 +434,16 @@ audio { accent-color: var(--dark-brown); width: 100%; }
 
 /*Photo gallery*/
 .fp-photo { cursor: zoom-in; }
+/*Photo caption — sits on the same dark backdrop as the photo and above
+  the thumbnail strip, so it reads as belonging to the image rather than
+  to the record fields below*/
+#fp-photo-caption {
+  background: #1a1a2e; color: #cfc6b4;
+  font-family: 'Georgia', serif; font-style: italic;
+  font-size: 11px; line-height: 1.4;
+  padding: 5px 10px 7px; text-align: center;
+  border-bottom: 1px solid var(--sepia);
+}
 #fp-thumbs {
   display: flex; gap: 4px; padding: 6px 8px;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
@@ -480,6 +490,33 @@ audio { accent-color: var(--dark-brown); width: 100%; }
   color: var(--parchment); font-family: 'Georgia', serif;
   font-size: 12px; padding: 0 16px;
 }
+/*A real caption is italic; a bare file name is not. The difference says
+  at a glance whether anyone has described the photo yet.*/
+#lb-caption.has-caption { font-style: italic; }
+
+#lb-caption-edit {
+  display: none;
+  position: absolute; bottom: calc(14px + var(--safe-bot));
+  left: 12px; right: 12px;
+  gap: 6px; align-items: center; justify-content: center;
+  flex-wrap: wrap;
+}
+#lb-caption-edit.open { display: flex; }
+#lb-caption-input {
+  flex: 1 1 240px; min-width: 0;
+  background: rgba(20,18,14,0.92); color: var(--parchment);
+  border: 1px solid var(--sepia); border-radius: 3px;
+  font-family: 'Georgia', serif; font-style: italic; font-size: 12px;
+  padding: 8px 10px;
+}
+#lb-caption-edit button {
+  background: rgba(20,18,14,0.92); color: var(--parchment);
+  border: 1px solid var(--sepia); border-radius: 3px;
+  font-family: 'Georgia', serif; font-size: 12px;
+  padding: 8px 14px; cursor: pointer;
+  min-height: 38px;
+}
+#lb-caption-edit button:disabled { opacity: 0.6; cursor: default; }
 
 /*Attachment delete (edit panel)*/
 .att-delete {

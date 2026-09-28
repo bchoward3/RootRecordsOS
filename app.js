@@ -1098,6 +1098,12 @@ function showPhotoAt(i) {
   document.querySelectorAll('.fp-thumb').forEach(t => {
     t.classList.toggle('active', parseInt(t.dataset.i, 10) === i);
   });
+  // The caption belongs to the photo, not the record, so it has to move
+  // with the thumbnail selection.
+  const cap = document.getElementById('fp-photo-caption');
+  const text = currentPhotos[i].caption;
+  cap.textContent = text || '';
+  cap.style.display = text ? 'block' : 'none';
 }
 
 function openLightbox(i) {
@@ -1116,8 +1122,15 @@ function renderLightbox() {
   if (!p) return;
   document.getElementById('lb-image').src = p.url;
   const multi = currentPhotos.length > 1;
+  const label = p.caption || p.name;
   document.getElementById('lb-caption').textContent =
-    multi ? `${p.name} — ${currentPhotoIndex + 1} of ${currentPhotos.length}` : p.name;
+    multi ? `${label} — ${currentPhotoIndex + 1} of ${currentPhotos.length}` : label;
+  document.getElementById('lb-caption').classList.toggle('has-caption', !!p.caption);
+  // Editing lives here because every field photo is named headstone.jpg —
+  // in a list of file names there is no way to tell which is which.
+  document.getElementById('lb-caption').style.cursor = currentUser ? 'pointer' : 'default';
+  document.getElementById('lb-caption').title = currentUser ? 'Tap to edit caption' : '';
+  closeCaptionEditor();
   document.getElementById('lb-prev').style.display = multi ? 'flex' : 'none';
   document.getElementById('lb-next').style.display = multi ? 'flex' : 'none';
 }
@@ -1128,6 +1141,62 @@ function stepPhoto(delta) {
   renderLightbox();
   showPhotoAt(currentPhotoIndex);
 }
+
+function openCaptionEditor() {
+  if (!currentUser) { showAuthModal(); return; }
+  const p = currentPhotos[currentPhotoIndex];
+  if (!p) return;
+  document.getElementById('lb-caption-input').value = p.caption || '';
+  document.getElementById('lb-caption-edit').classList.add('open');
+  document.getElementById('lb-caption').style.display = 'none';
+  document.getElementById('lb-caption-input').focus();
+}
+
+function closeCaptionEditor() {
+  document.getElementById('lb-caption-edit').classList.remove('open');
+  document.getElementById('lb-caption').style.display = 'block';
+}
+
+async function saveCaption() {
+  const p = currentPhotos[currentPhotoIndex];
+  if (!p || !p.id) return;
+  const btn = document.getElementById('lb-caption-save');
+  const text = document.getElementById('lb-caption-input').value.trim();
+  btn.disabled = true; btn.textContent = 'Saving…';
+  // Empty clears the caption rather than storing a blank string, so
+  // "no caption" is one state in the data and not two.
+  const { error } = await sb.from('attachments')
+    .update({ caption: text || null }).eq('id', p.id);
+  btn.disabled = false; btn.textContent = 'Save';
+  if (error) {
+    document.getElementById('lb-caption').textContent = 'Could not save: ' + error.message;
+    closeCaptionEditor();
+    return;
+  }
+  p.caption = text;
+  closeCaptionEditor();
+  renderLightbox();
+  showPhotoAt(currentPhotoIndex);
+}
+
+document.getElementById('lb-caption').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openCaptionEditor();
+});
+document.getElementById('lb-caption-save').addEventListener('click', (e) => {
+  e.stopPropagation();
+  saveCaption();
+});
+document.getElementById('lb-caption-cancel').addEventListener('click', (e) => {
+  e.stopPropagation();
+  closeCaptionEditor();
+});
+document.getElementById('lb-caption-edit').addEventListener('click', (e) => e.stopPropagation());
+document.getElementById('lb-caption-input').addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  if (e.key === 'Enter') saveCaption();
+  if (e.key === 'Escape') closeCaptionEditor();
+});
 
 document.getElementById('fp-photo').addEventListener('click', () => openLightbox(currentPhotoIndex));
 document.getElementById('lb-close').addEventListener('click', closeLightbox);
@@ -1284,6 +1353,9 @@ async function openFeaturePanel(grave) {
   currentPhotoIndex = 0;
   document.getElementById('fp-thumbs').style.display = 'none';
   document.getElementById('fp-thumbs').innerHTML = '';
+  // Or the previous record's caption lingers over the next photo.
+  document.getElementById('fp-photo-caption').style.display = 'none';
+  document.getElementById('fp-photo-caption').textContent = '';
   document.getElementById('fp-audio').style.display = 'none';
   document.getElementById('fp-docs').style.display = 'none';
   document.getElementById('fp-docs-list').innerHTML = '';
@@ -1297,7 +1369,11 @@ async function openFeaturePanel(grave) {
     if (photos.length > 0) {
       const signed = await Promise.all(photos.map(async p => {
         const { data } = await sb.storage.from('graves-media').createSignedUrl(p.file_path, 3600);
-        return data?.signedUrl ? { url: data.signedUrl, name: p.file_name } : null;
+        // Carry the attachment id so a caption can be written back
+        // against the photo actually on screen.
+        return data?.signedUrl
+          ? { url: data.signedUrl, name: p.file_name, caption: p.caption || '', id: p.id }
+          : null;
       }));
       currentPhotos = signed.filter(Boolean);
       if (currentPhotos.length > 0) {
