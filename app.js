@@ -1265,8 +1265,8 @@ async function openFeaturePanel(grave) {
   document.getElementById('fp-title').textContent = `⚰ ${grave.person_name || 'Unknown'}`;
 
   const fields = [
-    ['Date of Birth', grave.dob ? new Date(grave.dob).toLocaleDateString() : null],
-    ['Date of Death', grave.dod ? new Date(grave.dod).toLocaleDateString() : null],
+    ['Date of Birth', formatDate(grave.dob)],
+    ['Date of Death', formatDate(grave.dod)],
     ['Father', grave.father],
     ['Mother', grave.mother],
     ['Cemetery', grave.cemetery_name],
@@ -1471,7 +1471,7 @@ function openEditPanel(grave) {
       const inp = document.createElement('input');
       inp.type = 'text'; inp.id = def.id; inp.className = 'rr-input';
       inp.placeholder = 'YYYY-MM-DD';
-      if (val) { try { inp.value = new Date(val).toISOString().split('T')[0]; } catch(e) {} }
+      if (val) inp.value = dateForInput(val);
       container.appendChild(inp);
     } else {
       const inp = document.createElement('input');
@@ -1507,6 +1507,226 @@ function openEditPanel(grave) {
   document.getElementById('edit-save').disabled = false;
   openPanel('edit-panel');
 }
+
+// ══════════════════════════════════════════
+// GENERATIONAL DRIFT
+// ══════════════════════════════════════════
+// Shades graves by generation or by birth decade, and measures how far
+// the centre of gravity moves between the earliest band and the latest.
+//
+// The shading sits in its own pane above the grave icons rather than
+// recolouring them, so clearing it cannot disturb the markers, their
+// halos, or the selected-record label.
+
+let genLayer = null;
+let genPaneReady = false;
+
+function ensureGenLayer() {
+  if (!genPaneReady) {
+    map.createPane('rr-generations');
+    map.getPane('rr-generations').style.zIndex = 650; // above markerPane (600)
+    genPaneReady = true;
+  }
+  if (!genLayer) genLayer = L.layerGroup([], { pane: 'rr-generations' }).addTo(map);
+  return genLayer;
+}
+
+function clearGenerations() {
+  if (genLayer) genLayer.clearLayers();
+  document.getElementById('gen-legend').innerHTML = '';
+  document.getElementById('gen-measure').innerHTML = '';
+  document.getElementById('gen-status').textContent = '';
+}
+
+function genStatus(msg, isError) {
+  const el = document.getElementById('gen-status');
+  el.textContent = msg || '';
+  el.style.color = isError ? 'var(--red)' : 'var(--brown)';
+}
+
+function currentGenMode() {
+  const checked = document.querySelector('input[name="gen-mode"]:checked');
+  return checked ? checked.value : 'lineage';
+}
+
+async function runGenerations() {
+  const mode = currentGenMode();
+  clearGenerations();
+  const layer = ensureGenLayer();
+
+  // Collect the graves that can be placed and shaded.
+  let points = [];
+  let unshaded = 0;
+
+  if (mode === 'cohort') {
+    currentGraves.forEach(g => {
+      const c = parseLocation(g.location);
+      if (!c) return;
+      const key = RRGenerations.cohortOf(g.dob);
+      if (key === null) { unshaded++; return; }
+      points.push({ key, lat: c.lat, lng: c.lng, grave: g });
+    });
+    if (!points.length) {
+      genStatus('No records have a usable birth date.', true);
+      return;
+    }
+  } else {
+    const picked = RRPicker.value(document.getElementById('gen-root'));
+    if (!picked.id) {
+      genStatus('Choose a person from the dropdown to start from.', true);
+      return;
+    }
+    genStatus('Walking the family line…');
+    const { data: persons, error } = await sb.from('persons')
+      .select('id, name, dob, dod, gender, father, mother, father_id, mother_id');
+    if (error) { genStatus('Could not load records: ' + error.message, true); return; }
+
+    const res = RRGenerations.lineage(persons || [], picked.id);
+    if (!res) { genStatus('That person has no record to start from.', true); return; }
+
+    currentGraves.forEach(g => {
+      const c = parseLocation(g.location);
+      if (!c) return;
+      const d = g.person_id !== undefined && g.person_id !== null
+        ? res.depths[g.person_id] : undefined;
+      if (d === undefined) { unshaded++; return; }
+      points.push({ key: d, lat: c.lat, lng: c.lng, grave: g });
+    });
+    if (points.length < 2) {
+      genStatus('Only one grave connects to that person — nothing to compare.', true);
+      return;
+    }
+    if (res.conflicts) {
+      // Cousin marriage puts a person at two different depths. The
+      // shorter one is used; saying so is better than picking quietly.
+      genStatus(res.conflicts + ' link(s) gave a person more than one ' +
+        'generation number — the closest was used.');
+    }
+  }
+
+  const bands = RRGenerations.band(points);
+
+  // Graves, shaded.
+  bands.forEach(b => {
+    b.points.forEach(p => {
+      L.circleMarker([p.lat, p.lng], {
+        pane: 'rr-generations',
+        radius: 7, color: '#fdf6e6', weight: 1.5,
+        fillColor: b.color, fillOpacity: 0.95
+      }).addTo(layer).bindTooltip(
+        (p.grave.person_name || 'Unknown') + ' — ' + bandLabel(mode, b.key),
+        { direction: 'top' }
+      );
+    });
+  });
+
+  // Mean centre of each band, joined in order. This is the drift itself
+  // rather than an impression of it — the individual graves scatter far
+  // more than their centres move.
+  const centres = bands.map(b => [b.meanLat, b.meanLng]);
+  if (centres.length > 1) {
+    L.polyline(centres, {
+      pane: 'rr-generations',
+      color: '#1f3b5f', weight: 2, opacity: 0.85, dashArray: '6,5'
+    }).addTo(layer);
+  }
+  bands.forEach(b => {
+    L.circleMarker([b.meanLat, b.meanLng], {
+      pane: 'rr-generations',
+      radius: 9, color: '#1f3b5f', weight: 2.5,
+      fillColor: b.color, fillOpacity: 1
+    }).addTo(layer).bindTooltip(
+      'Centre of ' + bandLabel(mode, b.key) + ' (' + b.n + ' grave' +
+      (b.n === 1 ? '' : 's') + ')',
+      { direction: 'top' }
+    );
+  });
+
+  renderGenLegend(mode, bands, unshaded);
+  renderGenMeasure(bands);
+
+  const all = L.latLngBounds(points.map(p => [p.lat, p.lng]));
+  map.fitBounds(all, { padding: [60, 60] });
+}
+
+function bandLabel(mode, key) {
+  return mode === 'cohort' ? 'born ' + key + 's' : RRGenerations.depthLabel(key);
+}
+
+function renderGenLegend(mode, bands, unshaded) {
+  const el = document.getElementById('gen-legend');
+  el.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'gen-legend-title';
+  title.textContent = mode === 'cohort' ? 'Decade born' : 'Generation';
+  el.appendChild(title);
+
+  bands.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'gen-legend-row';
+    const sw = document.createElement('span');
+    sw.className = 'gen-swatch';
+    sw.style.background = b.color;
+    const lbl = document.createElement('span');
+    lbl.textContent = bandLabel(mode, b.key) + ' — ' + b.n +
+      ' grave' + (b.n === 1 ? '' : 's');
+    row.appendChild(sw);
+    row.appendChild(lbl);
+    el.appendChild(row);
+  });
+
+  if (unshaded) {
+    const note = document.createElement('div');
+    note.className = 'gen-note';
+    note.textContent = unshaded + ' grave' + (unshaded === 1 ? '' : 's') +
+      (mode === 'cohort'
+        ? ' left plain — no birth date recorded.'
+        : ' left plain — not connected to that person by recorded parent links.');
+    el.appendChild(note);
+  }
+}
+
+function renderGenMeasure(bands) {
+  const el = document.getElementById('gen-measure');
+  el.innerHTML = '';
+  const d = RRGenerations.drift(bands);
+
+  const head = document.createElement('div');
+  head.className = 'gen-measure-head';
+  head.textContent = RRGenerations.describeDrift(d);
+  el.appendChild(head);
+
+  if (!d) return;
+
+  // Named plainly, because the number above is easy to over-read.
+  const caveat = document.createElement('div');
+  caveat.className = 'gen-note';
+  caveat.textContent =
+    'This measures where graves are, not where people lived. Families bury ' +
+    'their own in the same plots for generations, which pulls later groups ' +
+    'back toward earlier ones — so real movement is probably larger than ' +
+    'this. And anyone who moved beyond the counties you have surveyed is ' +
+    'not in the data at all.';
+  el.appendChild(caveat);
+}
+
+document.getElementById('btn-generations').addEventListener('click', () => {
+  openPanel('generations-panel');
+  if (window.RRPicker) RRPicker.attach(document.getElementById('gen-root'));
+});
+document.getElementById('generations-close').addEventListener('click', () => {
+  closePanel('generations-panel');
+});
+document.getElementById('gen-run').addEventListener('click', runGenerations);
+document.getElementById('gen-clear').addEventListener('click', clearGenerations);
+document.querySelectorAll('input[name="gen-mode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    // The root picker is meaningless in cohort mode, so it goes away
+    // rather than sitting there inviting a pointless answer.
+    document.getElementById('gen-root-wrap').style.display =
+      currentGenMode() === 'cohort' ? 'none' : 'block';
+  });
+});
 
 // ══════════════════════════════════════════
 // PEDIGREE CHART
@@ -2396,8 +2616,10 @@ document.getElementById('browse-btn').addEventListener('click', async () => {
   rows.forEach(p => {
     const div = document.createElement('div');
     div.className = 'browse-item';
-    const dob = p.dob ? new Date(p.dob).getFullYear() : '?';
-    const dod = p.dod ? new Date(p.dod).getFullYear() : '?';
+    // getFullYear() is local-time too, so a 1 January date was landing in
+    // the previous year here.
+    const dob = dateYear(p.dob) || '?';
+    const dod = dateYear(p.dod) || '?';
     const dates = (p.dob || p.dod) ? `${dob}–${dod}` : '';
     div.innerHTML = `<span>${p.name}</span><span class="dates">${dates}</span>`;
     div.addEventListener('click', () => {
@@ -3187,6 +3409,38 @@ async function buildFullWeb() {
 // ══════════════════════════════════════════
 // UTILITIES
 // ══════════════════════════════════════════
+// Dates in these records are calendar dates, not instants. new Date('1871-06-19')
+// parses the string as UTC midnight, and toLocaleDateString then renders it in
+// local time — which in Kentucky is UTC-5 and moves it back to the 18th. Every
+// date displayed through a Date object has been a day early. Read the parts
+// straight off the string instead and never construct a Date at all.
+function dateParts(v) {
+  if (!v) return null;
+  const m = String(v).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return null;
+  return { y: +m[1], mo: +m[2], d: +m[3] };
+}
+
+function formatDate(v) {
+  const p = dateParts(v);
+  // An unparseable or year-only value is shown as stored rather than guessed at.
+  if (!p) return v || null;
+  return p.mo + '/' + p.d + '/' + p.y;
+}
+
+function dateYear(v) {
+  const p = dateParts(v);
+  if (p) return p.y;
+  const m = String(v || '').match(/^(\d{4})/);
+  return m ? +m[1] : null;
+}
+
+function dateForInput(v) {
+  const p = dateParts(v);
+  if (!p) return v || '';
+  return p.y + '-' + String(p.mo).padStart(2, '0') + '-' + String(p.d).padStart(2, '0');
+}
+
 function showStatus(id, msg, type) {
   const el = document.getElementById(id);
   el.textContent = msg;

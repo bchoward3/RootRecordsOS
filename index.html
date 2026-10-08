@@ -46,6 +46,9 @@
   <!-- Pedigree chart -->
   <script src="pedigree.js"></script>
 
+  <!-- Generational drift -->
+  <script src="generations.js"></script>
+
   <!-- App styles -->
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -153,6 +156,53 @@
   </div>
 </div>
 
+<div class="panel" id="generations-panel">
+  <div class="panel-header">
+    <span class="panel-title">Generations</span>
+    <button class="panel-close" id="generations-close">✕</button>
+  </div>
+  <div class="panel-body">
+    <div class="gen-mode">
+      <label class="gen-opt">
+        <input type="radio" name="gen-mode" value="lineage" checked/>
+        <span class="gen-opt-title">One family line</span>
+        <span class="gen-opt-desc">
+          Pick a person. Everyone connected to them through parents and
+          children is shaded by how many generations away they are —
+          darkest for the oldest, palest for the most recent. Anyone not
+          related to that person is left as a plain marker, because
+          "three generations back" only means something once you say
+          back from whom. Use this to see whether <em>your</em> family
+          moved.
+        </span>
+      </label>
+      <label class="gen-opt">
+        <input type="radio" name="gen-mode" value="cohort"/>
+        <span class="gen-opt-title">Everyone, by decade born</span>
+        <span class="gen-opt-desc">
+          Groups every record by the decade the person was born, family
+          or not — darkest earliest. Records with no birth date are left
+          plain. Use this as a check: if everybody buried here drifts the
+          same direction, you are looking at the history of the area
+          rather than of one family.
+        </span>
+      </label>
+    </div>
+
+    <div id="gen-root-wrap">
+      <label class="rr-label">Start from</label>
+      <input class="rr-input" id="gen-root" placeholder="Type a name in your records"/>
+    </div>
+
+    <button class="rr-btn" id="gen-run" style="margin-top:10px;">◷ Shade the map</button>
+    <button class="rr-btn secondary" id="gen-clear" style="margin-top:6px;">Clear shading</button>
+
+    <div id="gen-status" style="font-size:11px;color:var(--brown);margin-top:8px;min-height:16px;"></div>
+    <div id="gen-legend"></div>
+    <div id="gen-measure"></div>
+  </div>
+</div>
+
 <div id="pedigree-panel">
   <div class="ped-header">
     <span id="pedigree-title">Pedigree</span>
@@ -222,7 +272,7 @@
 <div id="toolbar">
   <button class="tool-btn" id="btn-add">＋ Add Grave</button>
   <button class="tool-btn secondary" id="btn-filter">⌕ Filter by Person</button>
-  <button class="tool-btn secondary" id="btn-web">⬡ Family Web</button>
+  <button class="tool-btn secondary" id="btn-generations">◷ Generations</button>
 </div>
 
 <!-- One-time GPS tip banner for user -->
@@ -503,6 +553,11 @@
         the ones whose spouse now has a record of their own.
       </div>
       <button class="rr-btn secondary" id="open-link-panel">⚭ Review unlinked spouses</button>
+      <div style="font-size:11px;color:var(--brown);line-height:1.5;margin:10px 0 8px;">
+        Draws every known parent-child link in the whole dataset at once.
+        Dense, but useful for spotting clusters.
+      </div>
+      <button class="rr-btn secondary" id="btn-web">⬡ Family Web</button>
     </div>
 
     <!-- AGPL section 13: anyone using this over a network must be offered
