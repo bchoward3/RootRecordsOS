@@ -272,13 +272,44 @@ function setSelectedGrave(grave) {
   });
 }
 
-function createGraveMarker(g, coords) {
-  const icon = L.icon({
-    iconUrl: 'grave.png',
+// Grave id -> shade, while generation shading is on. Null means plain icons.
+let genColors = null;
+
+// The coffin itself carries the colour. The PNG is used as a CSS mask so the
+// silhouette stays exactly the same artwork and only the fill changes —
+// tinting the image with filters would distort it, and a coloured dot beside
+// the marker reads as a second thing on the map rather than as the grave.
+function buildGraveIcon(g) {
+  const halo = gravesWithPhotos.has(g.id) ? 'grave-marker' : 'grave-marker no-photo';
+  const shade = genColors ? genColors[g.id] : null;
+  if (!shade) {
+    return L.icon({
+      iconUrl: 'grave.png',
+      iconSize: [20, 28],
+      iconAnchor: [10, 28],
+      className: halo
+    });
+  }
+  return L.divIcon({
+    className: halo + ' grave-shaded',
     iconSize: [20, 28],
     iconAnchor: [10, 28],
-    className: gravesWithPhotos.has(g.id) ? 'grave-marker' : 'grave-marker no-photo'
+    html: '<span class="grave-shade" style="background-color:' + shade + '"></span>'
   });
+}
+
+// Repaint in place rather than rebuilding the layer, so tooltips, the
+// selected-record label and any open panel all survive.
+function applyGraveShading() {
+  if (!window.gravesLayer && typeof gravesLayer === 'undefined') return;
+  gravesLayer.eachLayer(layer => {
+    const g = layer._graveRef;
+    if (g && layer.setIcon) layer.setIcon(buildGraveIcon(g));
+  });
+}
+
+function createGraveMarker(g, coords) {
+  const icon = buildGraveIcon(g);
   const marker = L.marker([coords.lat, coords.lng], { icon });
   // Reads selectedGraveId, so a re-render after loadGraves keeps the
   // selected label rather than dropping it.
@@ -1533,6 +1564,7 @@ function ensureGenLayer() {
 
 function clearGenerations() {
   if (genLayer) genLayer.clearLayers();
+  if (genColors) { genColors = null; applyGraveShading(); }
   document.getElementById('gen-legend').innerHTML = '';
   document.getElementById('gen-measure').innerHTML = '';
   document.getElementById('gen-status').textContent = '';
@@ -1606,19 +1638,13 @@ async function runGenerations() {
 
   const bands = RRGenerations.band(points);
 
-  // Graves, shaded.
+  // Colour the grave markers themselves rather than adding a second symbol
+  // beside them — there is one grave, so there should be one mark.
+  genColors = {};
   bands.forEach(b => {
-    b.points.forEach(p => {
-      L.circleMarker([p.lat, p.lng], {
-        pane: 'rr-generations',
-        radius: 7, color: '#fdf6e6', weight: 1.5,
-        fillColor: b.color, fillOpacity: 0.95
-      }).addTo(layer).bindTooltip(
-        (p.grave.person_name || 'Unknown') + ' — ' + bandLabel(mode, b.key),
-        { direction: 'top' }
-      );
-    });
+    b.points.forEach(p => { genColors[p.grave.id] = b.color; });
   });
+  applyGraveShading();
 
   // Mean centre of each band, joined in order. This is the drift itself
   // rather than an impression of it — the individual graves scatter far
