@@ -16,7 +16,7 @@
 
 html, body { height: 100%; font-family: 'Georgia', serif; background: var(--ink); color: var(--parchment); overflow: hidden; }
 
-/*Header for the CSS*/
+/*Header*/
 #header {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   height: calc(48px + var(--safe-top));
@@ -157,7 +157,10 @@ textarea.rr-input { min-height: 80px; resize: vertical; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.fp-actions { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; padding: 8px 12px; background: #ede3cc; border-top: 1px solid var(--sepia); }
+/*Three columns, not four: the small cells are the editing controls — Edit,
+  Move, Delete — and everything that acts on the record as a whole runs the
+  full width. Four columns left an empty cell once Trace moved up.*/
+.fp-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 8px 12px; background: #ede3cc; border-top: 1px solid var(--sepia); }
 .fp-btn { padding: 6px; border: none; border-radius: 3px; font-size: 10px; cursor: pointer; font-family: 'Georgia', serif; min-height: 36px; }
 .fp-btn { padding: 8px; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; min-height: 44px; }
 
@@ -1126,6 +1129,14 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
   grid-column: 1 / -1;
   background: var(--dark-brown);
   color: var(--cream);
+  letter-spacing: 0.5px;
+}
+
+/* Trace is a view of the data, not an edit, so it belongs with Navigate,
+   How am I related and Pedigree rather than in the editing row. Its colour
+   stays inline in the markup. */
+#fp-trace {
+  grid-column: 1 / -1;
   letter-spacing: 0.5px;
 }
 
