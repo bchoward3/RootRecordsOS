@@ -1119,6 +1119,16 @@ body.theme-night .rr-input { background: #1e1a15; color: #d8ccb4; }
 }
 /* Read-only, so guests keep it alongside Trace and Navigate. */
 
+/* Same full-width row as Navigate and How am I related. Without the
+   grid-column span it drops into a single cell of the four-column grid and
+   reads as a different class of control than the two above it. */
+#fp-pedigree {
+  grid-column: 1 / -1;
+  background: var(--dark-brown);
+  color: var(--cream);
+  letter-spacing: 0.5px;
+}
+
 /* On a phone the relationship result deserves the whole screen — the tree
    is tall and the map behind it is doing nothing. Desktop keeps the panel. */
 @media (max-width: 600px) {
